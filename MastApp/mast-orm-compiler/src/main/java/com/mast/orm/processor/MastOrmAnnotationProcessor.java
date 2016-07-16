@@ -144,7 +144,7 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
             String name = executableElement.getSimpleName().toString();
 //            TypeElement superClassTypeElement =
 //                    (TypeElement)((DeclaredType)typeMirror).asElement();
-            String typeName = Utils.toString(typeMirror,false);
+            String typeName = Utils.toString(typeMirror,true);
             messager.printMessage(NOTE, "Activity Method Name " + typeName);
             BindingClass bindingClass = getOrCreateTargetClass(targetClassMap, annotationElement);
             if (bindingClass != null) {
