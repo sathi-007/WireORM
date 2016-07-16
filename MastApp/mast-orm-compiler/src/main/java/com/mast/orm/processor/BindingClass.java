@@ -20,10 +20,9 @@ import javax.lang.model.type.TypeMirror;
 
 public class BindingClass {
 
-    public final static String classPrefix="_table";
     private final ClassName generatedClassName;
     public BindingClass(String tableName, ClassName generatedClassName) {
-        this.tableName = tableName+classPrefix;
+        this.tableName = tableName;
         this.generatedClassName = generatedClassName;
     }
 

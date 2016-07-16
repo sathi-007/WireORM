@@ -4,9 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.google.auto.common.SuperficialValidation;
 import com.google.auto.service.AutoService;
+import com.mast.orm.processor.Util.Utils;
 import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.ParameterizedTypeName;
-import com.squareup.javapoet.TypeName;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -36,7 +35,6 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
 import static com.squareup.javapoet.TypeSpec.Kind.ANNOTATION;
-import static javax.lang.model.element.ElementKind.METHOD;
 import static javax.tools.Diagnostic.Kind.ERROR;
 import static javax.tools.Diagnostic.Kind.NOTE;
 
@@ -144,7 +142,10 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
             VariableElement executableElement = (VariableElement) element;
             TypeMirror typeMirror = executableElement.asType();
             String name = executableElement.getSimpleName().toString();
-
+//            TypeElement superClassTypeElement =
+//                    (TypeElement)((DeclaredType)typeMirror).asElement();
+            String typeName = Utils.toString(typeMirror,false);
+            messager.printMessage(NOTE, "Activity Method Name " + typeName);
             BindingClass bindingClass = getOrCreateTargetClass(targetClassMap, annotationElement);
             if (bindingClass != null) {
                 messager.printMessage(NOTE, "Activity Method Name " + name);
