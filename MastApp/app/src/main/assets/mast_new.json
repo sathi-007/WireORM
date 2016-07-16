@@ -1,0 +1,129 @@
+{
+  "type": "topnav",
+  "data": [
+    {
+      "text": "NEW",
+      "sequence": 0,
+      "type": "Home",
+      "path": "/content/documents/MobileApp/nav-admin/pages/home/home",
+      "moduleAssoc": "eb127792-a9de-450e-99a6-401b9bad1127",
+      "sectionBreak":false,
+      "link":"/home"
+    },
+    {
+      "text": "SHOP",
+      "sequence": 1,
+      "type": "Shop",
+      "path": "/content/documents/MobileApp/nav-admin/pages/shop/shop",
+      "link":"",
+      "sectionBreak":false
+    },
+    {
+      "text": "MORE",
+      "sequence": 2,
+      "type": "More",
+      "path": "/content/documents/MobileApp/nav-admin/pages/more/more",
+      "link":"",
+      "sectionBreak":false,
+      "subMenu": [
+        {
+          "text": "My Account",
+          "sequence": 0,
+          "type": "WEB",
+          "path": "/content/documents/MobileApp/nav-admin/pages/more/myaccount",
+          "link": "/account/profile",
+          "moduleAssoc": "e834je-tj7hy6-pl5k7h-mgph26-am3solg",
+          "sectionBreak": false,
+          "image": {
+            "src": "my-account",
+            "alt": "my account",
+            "width": 32,
+            "height": 36
+          },
+          "fallback": true
+        },
+        {
+          "text": "App Settings",
+          "sequence": 1,
+          "type": "AppSettings",
+          "path": "/content/documents/MobileApp/nav-admin/pages/more/appsettings",
+          "link": "",
+          "moduleAssoc": "e834je-tj7hy6-pl5k7h-mgph26-am3solg",
+          "sectionBreak": true,
+          "image": {
+            "src": "more-settings",
+            "alt": "App Setting",
+            "width": 32,
+            "height": 36
+          },
+          "fallback": true
+        },
+        {
+          "text": "Customer Service",
+          "sequence": 2,
+          "type": "customerservice",
+          "path": "/content/documents/MobileApp/nav-admin/pages/more/customerservice",
+          "link": "",
+          "moduleAssoc": "e834je-tj7hy6-pl5k7h-mgph26-am3solg",
+          "sectionBreak": true,
+          "image": {
+            "src": "more-app-cust-service",
+            "alt": "Customer Service",
+            "width": 32,
+            "height": 36
+          },
+          "fallback": true
+        },
+        {
+          "text": "Live Chat",
+          "sequence": 3,
+          "type": "LiveChat",
+          "path": "/content/documents/MobileApp/nav-admin/pages/more/livechat",
+          "link": "",
+          "moduleAssoc": "e834je-tj7hy6-pl5k7h-mgph26-am3solg",
+          "sectionBreak": false,
+          "image": {
+            "src": "more-live-chat",
+            "alt": "Live Chat",
+            "width": 32,
+            "height": 36
+          },
+          "fallback": true
+        },
+        {
+          "text": "App Feedback",
+          "sequence": 4,
+          "type": "appfeedback",
+          "path": "/content/documents/MobileApp/nav-admin/pages/more/appfeedback",
+          "link": "",
+          "moduleAssoc": "e834je-tj7hy6-pl5k7h-mgph26-am3solg",
+          "sectionBreak": false,
+          "image": {
+            "src": "more-app-feedback",
+            "alt": "App Feedback",
+            "width": 32,
+            "height": 36
+          },
+          "fallback": true
+        },
+        {
+          "text": "Store Locator",
+          "sequence": 5,
+          "type": "WEB",
+          "path": "/content/documents/MobileApp/nav-admin/pages/more/storelocator",
+          "link": "/store-locator",
+          "moduleAssoc": "e834je-tj7hy6-pl5k7h-mgph26-am3solg",
+          "sectionBreak": false,
+          "image": {
+            "src": "more-store-locator",
+            "alt": "Store Locator",
+            "width": 32,
+            "height": 36
+          },
+          "fallback": true
+        }
+      ]
+    }
+  ]
+}
+

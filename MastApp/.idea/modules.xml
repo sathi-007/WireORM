@@ -4,6 +4,8 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/MastApp.iml" filepath="$PROJECT_DIR$/MastApp.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/mast-orm-compiler/mast-orm-compiler.iml" filepath="$PROJECT_DIR$/mast-orm-compiler/mast-orm-compiler.iml" />
+      <module fileurl="file://$PROJECT_DIR$/mast-orm-library/mast-orm-library.iml" filepath="$PROJECT_DIR$/mast-orm-library/mast-orm-library.iml" />
     </modules>
   </component>
 </project>
