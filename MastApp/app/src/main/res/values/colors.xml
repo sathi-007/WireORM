@@ -1,6 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="black_54">#8A000000</color>
+    <color name="black_12">#1F000000</color>
+
+
+    <color name="textColorPrimary">#212121</color>
+    <color name="textColorSecondary">#727272</color>
     <color name="colorPrimary">#3F51B5</color>
     <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorPrimaryLight">#C5CAE9</color>
     <color name="colorAccent">#FF4081</color>
+    <color name="text">#FFFFFF</color>
+    <color name="icons">#FFFFFF</color>
+    <color name="divider">#B6B6B6</color>
+
+    <color name="colorControlNormal">@color/textColorSecondary</color>
+    <color name="colorControlActivated">@color/colorAccent</color>
+    <color name="colorControlHighlight">@color/divider</color>
+    <!--<color name="colorButtonNormal">#19C1B2</color>
+    <color name="colorSwitchThumbNormal">#19C1B2</color>
+    <color name="navigationBarColor">@color/colorPrimaryDark</color>-->
+
+    <color name="windowBackground">#FFF5F5F5</color>
+    <color name="lightBackground">#EDEDED</color>
+    <color name="darkBackground">#424242</color>
+    <color name="drawerBackground">#FFfafafa</color>
+    <color name="rowBackground">#F2F2F2</color>
+
+    <color name="itemdividerColor">@color/windowBackground</color>
+    <color name="dividerColor">#0F000000</color>
+    <color name="dividerColorDark">#0F000000</color>
+    <color name="headerItemBackground">#FFE7E7E7</color>
+    <color name="headerItemDarkBackground">#1f000000</color>
 </resources>

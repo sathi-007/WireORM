@@ -41,7 +41,17 @@ ext.deps = [
         googlePlayAnalytics: "com.google.android.gms:play-services-analytics:8.4.0",
         butterKnife        : "com.jakewharton:butterknife:8.0.1",
         butterKnifeCompiler: "com.jakewharton:butterknife-compiler:8.0.1",
-        gson               : "com.google.code.gson:gson:2.6.2"
+        gson               : "com.google.code.gson:gson:2.6.2",
+        googlePlay           : "com.google.android.gms:play-services-gcm:8.0.1",
+        design               : "com.android.support:design:23.4.0",
+        recyclerView         : "com.android.support:recyclerview-v7:23.4.0",
+        palette              : "com.android.support:palette-v7:23.4.0",
+        cardview             : "com.android.support:cardview-v7:'23.4.0",
+        percent              : "com.android.support:percent:23.4.0",
+        supportv4            : "com.android.support:support-v4:23.4.0",
+        appcompatv7          : "com.android.support:appcompat-v7:23.4.0",
+        supportv13           : "com.android.support:support-v13:23.4.0",
+        vectorSupport        : "com.android.support:support-vector-drawable:23.4.0"
 
 ]
 

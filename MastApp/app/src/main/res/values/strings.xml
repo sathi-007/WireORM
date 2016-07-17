@@ -1,3 +1,17 @@
 <resources>
-    <string name="app_name">MastApp</string>
+    <string name="app_name">OpinioDashboard</string>r
+    <string name="home">Home</string>
+    <string name="merchant">Merchant</string>
+    <string name="locality">Locality</string>
+    <string name="runner">Runner</string>
+
+    <string name="drawer_open">Open</string>
+    <string name="drawer_close">Close</string>
+
+    <string-array name="nav_drawer_labels">
+        <item>@string/home</item>
+        <item>@string/merchant</item>
+        <item>@string/locality</item>
+        <item>@string/runner</item>
+    </string-array>
 </resources>

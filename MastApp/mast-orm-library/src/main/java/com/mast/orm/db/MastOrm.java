@@ -52,6 +52,7 @@ public class MastOrm {
             temphashMap.put(columnName, i);
             i++;
         }
+        //handled extra column added case, column removal case not handled yet
         if (columnsWithDataTypes != null && columnNames.length > 0) {
             if (dbCursor.getColumnCount() != columnsWithDataTypes.size()) {
                 if (columnsWithDataTypes.size() > dbCursor.getColumnCount()) {

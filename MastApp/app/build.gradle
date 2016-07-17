@@ -63,6 +63,10 @@ dependencies {
 
     // Required if generating Jackson 2 annotations
     compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
+    compile deps.recyclerView
+    compile deps.supportv4
+    compile deps.supportv13
+    compile deps.design
 }
 
 // Each configuration is set to the default value
