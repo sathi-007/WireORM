@@ -54,14 +54,14 @@ public class BindingClass {
                 generatedClassName.simpleName());
 
 
-        FieldSpec activityFilter = FieldSpec.builder(listOfHoverboards, "activityFilter")
+//        FieldSpec activityFilter = FieldSpec.builder(listOfHoverboards, "activityFilter")
+//                .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
+//                .initializer("new $T<>()", arrayList)
+//                .build();
+//
+        FieldSpec baseColumnName = FieldSpec.builder(string, "_id")
                 .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
-                .initializer("new $T<>()", arrayList)
-                .build();
-
-        FieldSpec methodFilter = FieldSpec.builder(listOfHoverboards, "methodList")
-                .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
-                .initializer("new $T<>()", arrayList)
+                .initializer("$S", "_id")
                 .build();
 
         FieldSpec android = FieldSpec.builder(String.class, "tableName")
@@ -83,46 +83,46 @@ public class BindingClass {
 
 //        MethodSpec beyondMethod = beyondBuilder.build();
 
-        MethodSpec.Builder addActivityFilterBuilder = MethodSpec.methodBuilder("addActivityFilter")
-                .returns(void.class);
-
-//        for (String methodName : trackerList) {
-//            addActivityFilterBuilder.addStatement("$N.add($S)", activityFilter, methodName);
-//        }
-
-        MethodSpec activityFilterMethod = addActivityFilterBuilder.build();
-
-        MethodSpec getScreenName = MethodSpec.methodBuilder("getScreenName")
-                .addModifiers(Modifier.PUBLIC)
-                .returns(String.class)
-                .addStatement("return $N", android)
-                .build();
-
-//        MethodSpec getFilterList = MethodSpec.methodBuilder("getFilterList")
+//        MethodSpec.Builder addActivityFilterBuilder = MethodSpec.methodBuilder("addActivityFilter")
+//                .returns(void.class);
+//
+////        for (String methodName : trackerList) {
+////            addActivityFilterBuilder.addStatement("$N.add($S)", activityFilter, methodName);
+////        }
+//
+//        MethodSpec activityFilterMethod = addActivityFilterBuilder.build();
+//
+//        MethodSpec getScreenName = MethodSpec.methodBuilder("getScreenName")
 //                .addModifiers(Modifier.PUBLIC)
-//                .returns(listOfHoverboards)
-//                .addStatement("return $N", activityFilter)
+//                .returns(String.class)
+//                .addStatement("return $N", android)
 //                .build();
 
-        MethodSpec isMethodExists = MethodSpec.methodBuilder("isMethodExists")
+        MethodSpec checkSchemaFuncSpec = MethodSpec.methodBuilder("checkSchemaChange")
                 .addModifiers(Modifier.PUBLIC)
-                .returns(TypeName.BOOLEAN)
-                .addParameter(String.class, "methodName")
-                .addStatement("boolean flag = false")
-                .beginControlFlow("for (int i = $L; i < $N.size(); i++)", 0, methodFilter)
-                .addStatement("flag = $N.get(i).toLowerCase().contentEquals($N.toLowerCase())", methodFilter, "methodName")
-                .beginControlFlow("if(flag)")
-                .addStatement("return true")
-                .endControlFlow()
-                .endControlFlow()
-                .addStatement("return flag")
+                .returns(void.class)
+                .addStatement("$N.checkSchemaChange($N,$N)", mastOrmField, android, columnTypeMap)
                 .build();
 
-        MethodSpec flux = MethodSpec.constructorBuilder()
-                .addModifiers(Modifier.PUBLIC)
-                .addStatement("addActivityFilter()")
-//                .addStatement("addMethodList()")
-                .build();
+//        MethodSpec isMethodExists = MethodSpec.methodBuilder("isMethodExists")
+//                .addModifiers(Modifier.PUBLIC)
+//                .returns(TypeName.BOOLEAN)
+//                .addParameter(String.class, "methodName")
+//                .addStatement("boolean flag = false")
+//                .beginControlFlow("for (int i = $L; i < $N.size(); i++)", 0, methodFilter)
+//                .addStatement("flag = $N.get(i).toLowerCase().contentEquals($N.toLowerCase())", methodFilter, "methodName")
+//                .beginControlFlow("if(flag)")
+//                .addStatement("return true")
+//                .endControlFlow()
+//                .endControlFlow()
+//                .addStatement("return flag")
+//                .build();
+
+//        MethodSpec flux = MethodSpec.constructorBuilder()
+//                .addModifiers(Modifier.PUBLIC)
+//                .addStatement("addActivityFilter()")
+////                .addStatement("addMethodList()")
+//                .build();
 
         MethodSpec loadFunc = MethodSpec.methodBuilder("load")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
@@ -130,23 +130,25 @@ public class BindingClass {
                 .beginControlFlow("if($N == null)", clazz)
                 .addStatement("$N = new $T()", clazz, classFqcn)
                 .addStatement("$N.$N = $T.getInstance()", clazz, mastOrmField, mastOrm)
+
                 .addStatement("$N.addValueTypes()", clazz)
                 .addStatement("$N.addSqlDataTypes()", clazz)
                 .addStatement("$N.addPojoFunctionName()", clazz)
+                .addStatement("$N.checkSchemaChange()", clazz)
                 .addStatement("$N.createTable()", clazz)
                 .endControlFlow()
                 .addStatement("return $N", clazz)
                 .build();
 
         MethodSpec.Builder addValuesTypesFuncBuilder = MethodSpec.methodBuilder("addValueTypes")
-                .addModifiers(Modifier.PUBLIC)
+                .addModifiers(Modifier.PRIVATE)
                 .returns(void.class);
         writeColumValueTypes(addValuesTypesFuncBuilder, columnTypeMap);
 
         MethodSpec addValuesTypesFunc = addValuesTypesFuncBuilder.build();
 
         MethodSpec.Builder addSqlTypesFuncBuilder = MethodSpec.methodBuilder("addSqlDataTypes")
-                .addModifiers(Modifier.PUBLIC)
+                .addModifiers(Modifier.PRIVATE)
                 .returns(void.class);
 
         appendColumNameAndTypes(addSqlTypesFuncBuilder, columnSqlTypeMap);
@@ -154,7 +156,7 @@ public class BindingClass {
         MethodSpec addSqlFunc = addSqlTypesFuncBuilder.build();
 
         MethodSpec.Builder addPojoFunctionName = MethodSpec.methodBuilder("addPojoFunctionName")
-                .addModifiers(Modifier.PUBLIC)
+                .addModifiers(Modifier.PRIVATE)
                 .returns(void.class);
         writeFunctionNameName(addPojoFunctionName, pojoFunctionNameMap);
 
@@ -164,8 +166,8 @@ public class BindingClass {
 
         TypeSpec.Builder result = TypeSpec.classBuilder(generatedClassName)
                 .addModifiers(Modifier.PUBLIC)
-                .addField(activityFilter)
-                .addField(methodFilter)
+//                .addField(activityFilter)
+//                .addField(methodFilter)
                 .addField(android)
                 .addField(columnValueMap)
                 .addField(columnTypeMap)
@@ -173,18 +175,20 @@ public class BindingClass {
                 .addField(mastOrmField)
                 .addField(columnUpdateWhereValueMap)
                 .addField(pojoFunctionNameMap)
+                .addField(baseColumnName)
                 .addField(clazz)
                 .addMethod(loadFunc)
                 .addMethod(addValuesTypesFunc)
                 .addMethod(addSqlFunc)
                 .addMethod(createTabbleFunc)
-                .addMethod(pojo2Func)
+                .addMethod(checkSchemaFuncSpec)
+                .addMethod(pojo2Func);
 //                .addMethod( beyondMethod)
 //                .addMethod(getFilterList)
-                .addMethod(activityFilterMethod)
-                .addMethod(isMethodExists)
-                .addMethod(getScreenName)
-                .addMethod(flux);
+//                .addMethod(activityFilterMethod)
+//                .addMethod(isMethodExists)
+//                .addMethod(getScreenName)
+//                .addMethod(flux);
 
         writeColumnIndividualSetters(result);
 
@@ -221,12 +225,12 @@ public class BindingClass {
                 Map.Entry pair = (Map.Entry) it.next();
                 TypeMirror typeMirror = (TypeMirror) pair.getValue();
                 String className = Utils.toString(typeMirror, false);
-//                if(typeMirror.getKind()!= TypeKind.DECLARED)
                 String decalredType = Utils.getSqlDataType(className);
                 if (decalredType != null)
                     builder.addStatement("$N.put($S,$S)", columnTypeMap, pair.getKey(), className);
-//                it.remove(); // avoids a ConcurrentModificationException
             }
+
+            builder.addStatement("$N.put($S,$S)", columnTypeMap, "_id", "Integer");
         }
     }
 
@@ -249,7 +253,9 @@ public class BindingClass {
 
     private MethodSpec createTableFunc(FieldSpec columnTypeMap, FieldSpec sqlTypeMap) {
 
-        String createTableString = "CREATE TABLE IF NOT EXISTS " + tableName + " ( ";
+        String createTableString = "CREATE TABLE IF NOT EXISTS "
+                + tableName
+                + " ( _id INTEGER PRIMARY KEY AUTOINCREMENT, ";
         MethodSpec.Builder createTableFuncBuilder = MethodSpec.methodBuilder("createTable")
                 .addModifiers(Modifier.PUBLIC)
                 .addStatement("$T queryBuilder = new $T()", stringBuilder, stringBuilder)
@@ -377,6 +383,10 @@ public class BindingClass {
                         .build());
             }
         }
+
+        tableEnum.addEnumConstant("_ID", TypeSpec.anonymousClassBuilder("$S", "_id")
+                .build());
+
         tableEnum.addField(String.class, "columnName", Modifier.PRIVATE, Modifier.FINAL)
                 .addMethod(MethodSpec.constructorBuilder()
                         .addParameter(String.class, "columnName")

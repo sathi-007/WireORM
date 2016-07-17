@@ -21,7 +21,9 @@ public class MastDbHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        if(newVersion>oldVersion){
 
+        }
     }
 
     public SQLiteDatabase getExecReadableDatabase() {
