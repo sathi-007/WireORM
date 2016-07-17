@@ -49,6 +49,7 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
     private Elements elementUtils;
     private Types typeUtils;
     private Filer filer;
+    private static final String BINDING_CLASS_SUFFIX = "_Schema";
 
     @Override
     public synchronized void init(ProcessingEnvironment env) {
@@ -145,24 +146,24 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
             String name = executableElement.getSimpleName().toString();
 //            TypeElement superClassTypeElement =
 //                    (TypeElement)((DeclaredType)typeMirror).asElement();
-            String typeName = Utils.toString(typeMirror,true);
+            String typeName = Utils.toString(typeMirror, true);
             messager.printMessage(NOTE, "Activity Variable Name " + typeName);
             BindingClass bindingClass = getOrCreateTargetClass(targetClassMap, annotationElement);
             if (bindingClass != null) {
                 bindingClass.addColumn(name, typeMirror);
             }
-        }else if (element instanceof ExecutableElement){
+        } else if (element instanceof ExecutableElement) {
             ExecutableElement executableElement = (ExecutableElement) element;
             TypeMirror typeMirror = executableElement.asType();
             String name = executableElement.getSimpleName().toString();
             JsonProperty annotatedElement = executableElement.getAnnotation(JsonProperty.class);
 
-            messager.printMessage(NOTE, "Activity Method Name " + name+" annotation value "+annotatedElement.value());
-            if(name.matches("set\\S+")){
-                messager.printMessage(NOTE, "Activity Set Method Name " + name +" annotation value "+annotatedElement.value());
+            messager.printMessage(NOTE, "Activity Method Name " + name + " annotation value " + annotatedElement.value());
+            if (name.matches("set\\S+")) {
+                messager.printMessage(NOTE, "Activity Set Method Name " + name + " annotation value " + annotatedElement.value());
                 BindingClass bindingClass = getOrCreateTargetClass(targetClassMap, annotationElement);
                 if (bindingClass != null) {
-                    bindingClass.addFunction(annotatedElement.value(),name);
+                    bindingClass.addFunction(annotatedElement.value(), name);
                 }
             }
         }
@@ -177,9 +178,11 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
 
             String packageName = getPackageName(annotationElement);
             ClassName classFqcn = ClassName.get(packageName,
-                    getClassName(annotationElement, packageName));
+                    getClassName(annotationElement, packageName) + BINDING_CLASS_SUFFIX);
 
-            bindingClass = new BindingClass(getClassName(annotationElement, packageName), classFqcn);
+            ClassName classPojo = ClassName.get(packageName,
+                    getClassName(annotationElement, packageName));
+            bindingClass = new BindingClass(getClassName(annotationElement, packageName), classFqcn, classPojo);
             targetClassMap.put(annotationElement, bindingClass);
         }
         return bindingClass;
@@ -193,7 +196,7 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
     }
 
     private String getPackageName(TypeElement type) {
-        String packageName =  elementUtils.getPackageOf(type).getQualifiedName().toString();
+        String packageName = elementUtils.getPackageOf(type).getQualifiedName().toString();
         return packageName;
     }
 
