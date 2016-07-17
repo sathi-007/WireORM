@@ -35,6 +35,10 @@ public class BindingClass {
         columnsWithDataTypes.put(columnName, valueType);
     }
 
+    public void addFunction(String columnName, String valueType) {
+        columnsWithFunctionNames.put(columnName, valueType);
+    }
+
     public JavaFile brewJava() {
 //        MethodSpec hexDigit = MethodSpec.methodBuilder("addActivityFilter")
 //                .returns(void.class)
@@ -42,14 +46,11 @@ public class BindingClass {
 //                .build();
 
 
-
         String packageName = Utils.getPackageName(generatedClassName.packageName());
 
 
         ClassName classFqcn = ClassName.get(packageName,
                 generatedClassName.simpleName());
-
-
 
 
         FieldSpec activityFilter = FieldSpec.builder(listOfHoverboards, "activityFilter")
@@ -66,7 +67,6 @@ public class BindingClass {
                 .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
                 .initializer("$S", tableName)
                 .build();
-
 
 
         FieldSpec clazz = FieldSpec.builder(classFqcn, "instance")
@@ -124,13 +124,14 @@ public class BindingClass {
                 .build();
 
         MethodSpec loadFunc = MethodSpec.methodBuilder("load")
-                .addModifiers(Modifier.PUBLIC)
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(classFqcn)
                 .beginControlFlow("if($N == null)", clazz)
-                .addStatement("new $T()", classFqcn)
-                .addStatement("addValueTypes()")
-                .addStatement("addSqlDataTypes()")
-                .addStatement("createTable()")
+                .addStatement("$N = new $T()", clazz, classFqcn)
+                .addStatement("$N.$N = $T.getInstance()", clazz, mastOrmField, mastOrm)
+                .addStatement("$N.addValueTypes()", clazz)
+                .addStatement("$N.addSqlDataTypes()", clazz)
+                .addStatement("$N.createTable()", clazz)
                 .endControlFlow()
                 .addStatement("return $N", clazz)
                 .build();
@@ -160,6 +161,8 @@ public class BindingClass {
                 .addField(columnValueMap)
                 .addField(columnTypeMap)
                 .addField(columnSqlTypeMap)
+                .addField(mastOrmField)
+                .addField(columnUpdateWhereValueMap)
                 .addField(clazz)
                 .addMethod(loadFunc)
                 .addMethod(addValuesTypesFunc)
@@ -173,6 +176,19 @@ public class BindingClass {
                 .addMethod(flux);
 
         writeColumnIndividualSetters(result);
+
+        MethodSpec saveMethodSpec = saveTableFunc();
+        MethodSpec whereMethodSpec = whereMethodSpec();
+        MethodSpec updateMethodSpec = updateMethodSpec();
+        ;
+        TypeSpec enumSpec = generateEnum();
+
+//        MethodSpec updateMethodSpec = updateTableFunc();
+
+        result.addType(enumSpec);
+        result.addMethod(saveMethodSpec);
+        result.addMethod(whereMethodSpec);
+        result.addMethod(updateMethodSpec);
 //        TypeName crudOperations = ParameterizedTypeName.get(CrudOperations);
 //
 //        result.addSuperinterface(crudOperations);
@@ -198,10 +214,9 @@ public class BindingClass {
         }
     }
 
+
     private MethodSpec createTableFunc(FieldSpec columnTypeMap, FieldSpec sqlTypeMap) {
-        ClassName stringBuilder = ClassName.get("java.lang", "StringBuilder");
-        ClassName iteratorType = ClassName.get("java.util", "Iterator");
-        ClassName mapType = ClassName.get("java.util", "Map");
+
         String createTableString = "CREATE TABLE IF NOT EXISTS " + tableName + " ( ";
         MethodSpec.Builder createTableFuncBuilder = MethodSpec.methodBuilder("createTable")
                 .addModifiers(Modifier.PUBLIC)
@@ -219,6 +234,43 @@ public class BindingClass {
                 .addStatement("index++")
                 .endControlFlow()
                 .addStatement("queryBuilder.append(\")\")")
+                .addStatement("$N.executeWrite(queryBuilder.toString(),null)", mastOrmField)
+                .returns(void.class);
+        return createTableFuncBuilder.build();
+    }
+
+    private MethodSpec saveTableFunc() {
+        String insertIntoString = "INSERT INTO " + tableName + " ( ";
+        String valuesString = "VALUES (";
+        MethodSpec.Builder createTableFuncBuilder = MethodSpec.methodBuilder("save")
+                .addModifiers(Modifier.PUBLIC)
+                .addStatement("$T insertIntoBuilder = new $T()", stringBuilder, stringBuilder)
+                .addStatement("insertIntoBuilder.append($S)", insertIntoString)
+                .addStatement("$T insertValueBuilder = new $T()", stringBuilder, stringBuilder)
+                .addStatement("insertValueBuilder.append($S)", valuesString)
+                .addStatement("int size = $N.size()", columnValueMap)
+                .addStatement("int index=0")
+                .addStatement("$T it = $N.entrySet().iterator()", iteratorType, columnValueMap)
+                .beginControlFlow(" while (it.hasNext())")
+                .addStatement(" $T.Entry pair = ($T.Entry) it.next()", mapType, mapType)
+                .addStatement("insertIntoBuilder.append(pair.getKey())")
+                .beginControlFlow("if($N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap)
+                .addStatement("insertValueBuilder.append(\"'\"+pair.getValue()+\"'\")")
+                .endControlFlow()
+                .beginControlFlow("else")
+                .addStatement("insertValueBuilder.append(pair.getValue())")
+                .endControlFlow()
+                .beginControlFlow("if(index <size-1)")
+                .addStatement("insertIntoBuilder.append(\",\")")
+                .addStatement("insertValueBuilder.append(\",\")")
+                .endControlFlow()
+                .addStatement("index++")
+                .endControlFlow()
+                .addStatement("insertIntoBuilder.append(\")\")")
+                .addStatement("insertValueBuilder.append(\")\")")
+                .addStatement("insertIntoBuilder.append(\" \"+ insertValueBuilder)")
+                .addStatement("$N.executeWrite(insertIntoBuilder.toString(),null)", mastOrmField)
+                .addStatement("$N.clear()", columnValueMap)
                 .returns(void.class);
         return createTableFuncBuilder.build();
     }
@@ -244,11 +296,11 @@ public class BindingClass {
     private void writeColumnIndividualSetters(TypeSpec.Builder result) {
         if (result != null && columnsWithDataTypes != null) {
             Iterator it = columnsWithDataTypes.entrySet().iterator();
-            String packageName = Utils.getPackageName(generatedClassName.packageName());
-
-
-            ClassName classFqcn = ClassName.get(packageName,
-                    generatedClassName.simpleName());
+//            String packageName = Utils.getPackageName(generatedClassName.packageName());
+//
+//
+//            ClassName classFqcn = ClassName.get(packageName,
+//                    generatedClassName.simpleName());
             while (it.hasNext()) {
                 Map.Entry pair = (Map.Entry) it.next();
                 System.out.println(pair.getKey() + " = " + pair.getValue());
@@ -257,56 +309,15 @@ public class BindingClass {
                 System.out.println(TAG + " " + className);
                 String decalredType = Utils.getSqlDataType(className);
                 if (decalredType != null) {
-                    FieldSpec android = null;
-                    MethodSpec loadFunc = null;
                     String varName = (String) pair.getKey();
                     if (className.contentEquals("String")) {
-                        android = FieldSpec.builder(String.class, varName)
-                                .addModifiers(Modifier.PRIVATE)
-                                .build();
-
-                        loadFunc = MethodSpec.methodBuilder(varName)
-                                .addModifiers(Modifier.PUBLIC)
-                                .returns(classFqcn)
-                                .addParameter(String.class, "val")
-                                .addStatement("$N.put($S, $N)", columnValueMap,varName ,"val")
-                                .addStatement("return this")
-                                .build();
+                        createFieldAndMethod(String.class, result, varName);
 
                     } else if (className.contentEquals("Integer")) {
-                        android = FieldSpec.builder(Integer.class, (String) pair.getKey())
-                                .addModifiers(Modifier.PRIVATE)
-                                .build();
-
-                        loadFunc = MethodSpec.methodBuilder(varName)
-                                .addModifiers(Modifier.PUBLIC)
-                                .returns(classFqcn)
-                                .addParameter(Integer.class, "val")
-//                                .addStatement("$N = $N", android, "val")
-                                .addStatement("$N.put($S, $N)", columnValueMap,varName ,"val")
-                                .addStatement("return this")
-                                .build();
+                        createFieldAndMethod(Integer.class, result, varName);
 
                     } else if (className.contentEquals("Boolean")) {
-                        android = FieldSpec.builder(Boolean.class, (String) pair.getKey())
-                                .addModifiers(Modifier.PRIVATE)
-                                .build();
-
-                        loadFunc = MethodSpec.methodBuilder(varName)
-                                .addModifiers(Modifier.PUBLIC)
-                                .returns(classFqcn)
-                                .addParameter(Boolean.class, "val")
-//                                .addStatement("$N = $N", android, "val")
-                                .addStatement("$N.put($S, $N)", columnValueMap,varName ,"val")
-                                .addStatement("return this")
-                                .build();
-                    }
-
-                    if (android != null) {
-                        result.addField(android);
-                    }
-                    if (loadFunc != null) {
-                        result.addMethod(loadFunc);
+                        createFieldAndMethod(Boolean.class, result, varName);
                     }
 
                 } else {
@@ -316,9 +327,134 @@ public class BindingClass {
         }
     }
 
+    private TypeSpec generateEnum() {
+        TypeSpec.Builder tableEnum = TypeSpec.enumBuilder("COLUMNS")
+                .addModifiers(Modifier.PUBLIC);
+        Iterator it = columnsWithDataTypes.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry pair = (Map.Entry) it.next();
+            TypeMirror typeMirror = (TypeMirror) pair.getValue();
+            String className = Utils.toString(typeMirror, false);
+            String decalredType = Utils.getSqlDataType(className);
+            if (decalredType != null) {
+                String varName = (String) pair.getKey();
+                tableEnum.addEnumConstant(varName.toUpperCase(), TypeSpec.anonymousClassBuilder("$S", varName)
+                        .build());
+            }
+        }
+        tableEnum.addField(String.class, "columnName", Modifier.PRIVATE, Modifier.FINAL)
+                .addMethod(MethodSpec.constructorBuilder()
+                        .addParameter(String.class, "columnName")
+                        .addStatement("this.$N = $N", "columnName", "columnName")
+                        .build());
+        return tableEnum.build();
+    }
+
+    private MethodSpec whereMethodSpec() {
+        String packageName = Utils.getPackageName(generatedClassName.packageName());
+        ClassName enumClass = ClassName.get(generatedClassName.simpleName(),
+                "COLUMNS");
+
+        ClassName classFqcn = ClassName.get(packageName,
+                generatedClassName.simpleName());
+        MethodSpec createTableFuncBuilder = MethodSpec.methodBuilder("where")
+                .addModifiers(Modifier.PUBLIC)
+                .returns(classFqcn)
+                .addParameter(enumClass, "whereColumnName")
+                .addParameter(Object.class, "whereConditionValue")
+                .addStatement("$N.put($N, $N)", columnUpdateWhereValueMap, "whereColumnName.columnName", "whereConditionValue")
+                .addStatement("return this")
+                .build();
+
+        return createTableFuncBuilder;
+    }
+
+    private MethodSpec updateMethodSpec() {
+        String updateString = "UPDATE " + tableName + "  SET ";
+        String whereString = " WHERE ";
+        MethodSpec.Builder updateTableFuncBuilder = MethodSpec.methodBuilder("update")
+                .addModifiers(Modifier.PUBLIC)
+                .addStatement("$T insertIntoBuilder = new $T()", stringBuilder, stringBuilder)
+                .addStatement("insertIntoBuilder.append($S)", updateString)
+                .addStatement("$T insertValueBuilder = new $T()", stringBuilder, stringBuilder)
+                .addStatement("insertValueBuilder.append($S)", whereString)
 
 
+                .addStatement("int size = $N.size()", columnValueMap)
+                .addStatement("int index=0")
+                .addStatement("$T it = $N.entrySet().iterator()", iteratorType, columnValueMap)
+                .beginControlFlow(" while (it.hasNext())")
+                .addStatement(" $T.Entry pair = ($T.Entry) it.next()", mapType, mapType)
+                .beginControlFlow("if($N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap)
+                .addStatement("insertIntoBuilder.append(pair.getKey() +\"=\"+ \"'\"+pair.getValue()+\"'\")")
+                .endControlFlow()
+                .beginControlFlow("else")
+                .addStatement("insertIntoBuilder.append(pair.getKey() +\"=\"+pair.getValue())")
+                .endControlFlow()
+                .beginControlFlow("if(index <size-1)")
+                .addStatement("insertIntoBuilder.append(\",\")")
+                .endControlFlow()
+                .addStatement("index++")
+                .endControlFlow()
 
+
+                .addStatement("int new_size = $N.size()", columnUpdateWhereValueMap)
+                .addStatement("int new_index=0")
+                .addStatement("$T itr = $N.entrySet().iterator()", iteratorType, columnUpdateWhereValueMap)
+                .beginControlFlow(" while (itr.hasNext())")
+                .addStatement(" $T.Entry pair = ($T.Entry) itr.next()", mapType, mapType)
+                .beginControlFlow("if($N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap)
+                .addStatement("insertValueBuilder.append(pair.getKey() +\"=\"+ \"'\"+pair.getValue()+\"'\")")
+                .endControlFlow()
+                .beginControlFlow("else")
+                .addStatement("insertValueBuilder.append(pair.getKey() +\"=\"+pair.getValue())")
+                .endControlFlow()
+                .beginControlFlow("if(new_index <new_size-1)")
+                .addStatement("insertValueBuilder.append(\",\")")
+                .endControlFlow()
+                .addStatement("new_index++")
+                .endControlFlow()
+                .addStatement("insertIntoBuilder.append(\" \"+ insertValueBuilder)")
+                .addStatement("$N.executeWrite(insertIntoBuilder.toString(),null)", mastOrmField)
+                .addStatement("$N.clear()", columnValueMap)
+                .addStatement("$N.clear()", columnUpdateWhereValueMap)
+                .returns(void.class);
+        return updateTableFuncBuilder.build();
+    }
+
+    private <T> void createFieldAndMethod(Class<T> type, TypeSpec.Builder result, String varName) {
+        String packageName = Utils.getPackageName(generatedClassName.packageName());
+
+
+        ClassName classFqcn = ClassName.get(packageName,
+                generatedClassName.simpleName());
+        FieldSpec android = null;
+        MethodSpec loadFunc = null;
+        android = FieldSpec.builder(type, varName)
+                .addModifiers(Modifier.PRIVATE)
+                .build();
+
+        loadFunc = MethodSpec.methodBuilder(varName)
+                .addModifiers(Modifier.PUBLIC)
+                .returns(classFqcn)
+                .addParameter(type, "val")
+                .addStatement("$N.put($S, $N)", columnValueMap, varName, "val")
+                .addStatement("return this")
+                .build();
+
+        if (android != null) {
+            result.addField(android);
+        }
+        if (loadFunc != null) {
+            result.addMethod(loadFunc);
+        }
+    }
+
+
+    ClassName mastOrm = ClassName.get("com.mast.orm.db", "MastOrm");
+    ClassName stringBuilder = ClassName.get("java.lang", "StringBuilder");
+    ClassName iteratorType = ClassName.get("java.util", "Iterator");
+    ClassName mapType = ClassName.get("java.util", "Map");
     ClassName string = ClassName.get("java.lang", "String");
     ClassName integer = ClassName.get("java.lang", "Integer");
     ClassName bool = ClassName.get("java.lang", "Boolean");
@@ -329,7 +465,12 @@ public class BindingClass {
     TypeName columnValueTypeName = ParameterizedTypeName.get(hashSet, string,
             string);
     FieldSpec columnValueMap = FieldSpec.builder(declaredSet, "columnValueMap")
-            .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
+            .addModifiers(Modifier.PROTECTED, Modifier.FINAL)
+            .initializer("new $T<>()", hashSet)
+            .build();
+
+    FieldSpec columnUpdateWhereValueMap = FieldSpec.builder(declaredSet, "columnUpdateWhereValueMap")
+            .addModifiers(Modifier.PROTECTED, Modifier.FINAL)
             .initializer("new $T<>()", hashSet)
             .build();
 
@@ -342,10 +483,18 @@ public class BindingClass {
             .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
             .initializer("new $T<>()", hashSet)
             .build();
+
+
+
+    FieldSpec mastOrmField = FieldSpec.builder(mastOrm, "mastOrm")
+            .addModifiers(Modifier.PRIVATE)
+            .build();
+
     ClassName list = ClassName.get("java.util", "List");
     ClassName arrayList = ClassName.get("java.util", "ArrayList");
     TypeName listOfHoverboards = ParameterizedTypeName.get(list, string);
     private HashMap<String, TypeMirror> columnsWithDataTypes = new HashMap<>();
+    private HashMap<String, String> columnsWithFunctionNames = new HashMap<>();
     private String tableName;
     private final String TAG = BindingClass.class.getSimpleName();
 }

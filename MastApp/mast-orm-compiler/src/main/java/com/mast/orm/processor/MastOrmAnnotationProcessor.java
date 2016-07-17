@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -145,11 +146,24 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
 //            TypeElement superClassTypeElement =
 //                    (TypeElement)((DeclaredType)typeMirror).asElement();
             String typeName = Utils.toString(typeMirror,true);
-            messager.printMessage(NOTE, "Activity Method Name " + typeName);
+            messager.printMessage(NOTE, "Activity Variable Name " + typeName);
             BindingClass bindingClass = getOrCreateTargetClass(targetClassMap, annotationElement);
             if (bindingClass != null) {
-                messager.printMessage(NOTE, "Activity Method Name " + name);
                 bindingClass.addColumn(name, typeMirror);
+            }
+        }else if (element instanceof ExecutableElement){
+            ExecutableElement executableElement = (ExecutableElement) element;
+            TypeMirror typeMirror = executableElement.asType();
+            String name = executableElement.getSimpleName().toString();
+            JsonProperty annotatedElement = executableElement.getAnnotation(JsonProperty.class);
+
+            messager.printMessage(NOTE, "Activity Method Name " + name+" annotation value "+annotatedElement.value());
+            if(name.matches("set\\S+")){
+                messager.printMessage(NOTE, "Activity Set Method Name " + name +" annotation value "+annotatedElement.value());
+                BindingClass bindingClass = getOrCreateTargetClass(targetClassMap, annotationElement);
+                if (bindingClass != null) {
+                    bindingClass.addFunction(annotatedElement.value(),name);
+                }
             }
         }
     }
