@@ -62,8 +62,8 @@ public class ListAdapter extends RecyclerView.Adapter<ListAdapter.NewsItemViewHo
 
         @Override
         public void setData(Datum data, int position) {
-            dotumId.setText("  "+position);
-            dotumText.setText(" "+data.getLink());
+            dotumId.setText("  "+data.getSequence());
+            dotumText.setText(" "+data.getText());
         }
 
         @Override

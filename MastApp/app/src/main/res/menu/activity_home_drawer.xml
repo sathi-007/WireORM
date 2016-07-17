@@ -1,24 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <group android:checkableBehavior="single">
-        <item
-            android:id="@+id/nav_home"
-            android:icon="@drawable/ic_home"
-            android:title="@string/home" />
-        <item
-            android:id="@+id/nav_merchant"
-            android:icon="@drawable/ic_home"
-            android:title="@string/merchant" />
+    <item
+        android:id="@+id/action_calendar"
+        android:icon="@drawable/add"
+        android:title="Add"
+        app:showAsAction="collapseActionView|always" />
 
-        <item
-            android:id="@+id/nav_locality"
-            android:icon="@drawable/ic_home"
-            android:title="@string/locality" />
-        <item
-            android:id="@+id/nav_runner"
-            android:icon="@drawable/ic_home"
-            android:title="@string/runner" />
-    </group>
 
 </menu>

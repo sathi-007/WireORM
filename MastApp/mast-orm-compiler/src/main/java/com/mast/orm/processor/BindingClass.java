@@ -134,7 +134,7 @@ public class BindingClass {
                 .addStatement("$N.addValueTypes()", clazz)
                 .addStatement("$N.addSqlDataTypes()", clazz)
                 .addStatement("$N.addPojoFunctionName()", clazz)
-                .addStatement("$N.checkSchemaChange()", clazz)
+//                .addStatement("$N.checkSchemaChange()", clazz)
                 .addStatement("$N.createTable()", clazz)
                 .endControlFlow()
                 .addStatement("return $N", clazz)
@@ -196,6 +196,7 @@ public class BindingClass {
         MethodSpec whereMethodSpec = whereMethodSpec();
         MethodSpec updateMethodSpec = updateMethodSpec();
         MethodSpec findMethodSpec = findMethodSpec();
+        MethodSpec deleteMethodSpec = deleteMethodSpec();
         ;
         TypeSpec enumSpec = generateEnum();
 
@@ -206,6 +207,7 @@ public class BindingClass {
         result.addMethod(whereMethodSpec);
         result.addMethod(updateMethodSpec);
         result.addMethod(findMethodSpec);
+        result.addMethod(deleteMethodSpec);
 //        TypeName crudOperations = ParameterizedTypeName.get(CrudOperations);
 //
 //        result.addSuperinterface(crudOperations);
@@ -230,7 +232,7 @@ public class BindingClass {
                     builder.addStatement("$N.put($S,$S)", columnTypeMap, pair.getKey(), className);
             }
 
-            builder.addStatement("$N.put($S,$S)", columnTypeMap, "_id", "Integer");
+//            builder.addStatement("$N.put($S,$S)", columnTypeMap, "_id", "Integer");
         }
     }
 
@@ -384,8 +386,8 @@ public class BindingClass {
             }
         }
 
-        tableEnum.addEnumConstant("_ID", TypeSpec.anonymousClassBuilder("$S", "_id")
-                .build());
+//        tableEnum.addEnumConstant("_ID", TypeSpec.anonymousClassBuilder("$S", "_id")
+//                .build());
 
         tableEnum.addField(String.class, "columnName", Modifier.PRIVATE, Modifier.FINAL)
                 .addMethod(MethodSpec.constructorBuilder()
@@ -473,6 +475,38 @@ public class BindingClass {
         String updateString = "SELECT * FROM " + tableName;
         String whereString = " WHERE ";
         MethodSpec.Builder findFuncBuilder = MethodSpec.methodBuilder("find")
+                .addModifiers(Modifier.PUBLIC)
+                .addStatement("$T insertValueBuilder = new $T()", stringBuilder, stringBuilder)
+                .addStatement("insertValueBuilder.append($S)", updateString)
+                .addStatement("int new_size = $N.size()", columnUpdateWhereValueMap)
+                .beginControlFlow("if(new_size>0)")
+                .addStatement("insertValueBuilder.append($S)", whereString)
+                .endControlFlow()
+                .addStatement("int new_index=0")
+                .addStatement("$T itr = $N.entrySet().iterator()", iteratorType, columnUpdateWhereValueMap)
+                .beginControlFlow(" while (itr.hasNext())")
+                .addStatement(" $T.Entry pair = ($T.Entry) itr.next()", mapType, mapType)
+                .beginControlFlow("if($N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap)
+                .addStatement("insertValueBuilder.append(pair.getKey() +\"=\"+ \"'\"+pair.getValue()+\"'\")")
+                .endControlFlow()
+                .beginControlFlow("else")
+                .addStatement("insertValueBuilder.append(pair.getKey() +\"=\"+pair.getValue())")
+                .endControlFlow()
+                .beginControlFlow("if(new_index <new_size-1)")
+                .addStatement("insertValueBuilder.append(\" AND \")")
+                .endControlFlow()
+                .addStatement("new_index++")
+                .endControlFlow()
+                .returns(listOfPojos);
+        enableCursorProcessing(findFuncBuilder);
+        return findFuncBuilder.build();
+    }
+
+    private MethodSpec deleteMethodSpec() {
+        TypeName listOfPojos = ParameterizedTypeName.get(list, pojoClassName);
+        String updateString = "DELETE FROM " + tableName;
+        String whereString = " WHERE ";
+        MethodSpec.Builder findFuncBuilder = MethodSpec.methodBuilder("delete")
                 .addModifiers(Modifier.PUBLIC)
                 .addStatement("$T insertValueBuilder = new $T()", stringBuilder, stringBuilder)
                 .addStatement("insertValueBuilder.append($S)", updateString)

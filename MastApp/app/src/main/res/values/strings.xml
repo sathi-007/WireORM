@@ -7,7 +7,7 @@
 
     <string name="drawer_open">Open</string>
     <string name="drawer_close">Close</string>
-
+    <string name="add_item">Add Item</string>
     <string-array name="nav_drawer_labels">
         <item>@string/home</item>
         <item>@string/merchant</item>

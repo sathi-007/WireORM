@@ -50,4 +50,5 @@
         android:src="@drawable/delete"
         android:visibility="gone"
         tools:src="@drawable/ic_home" />
+
 </RelativeLayout>
