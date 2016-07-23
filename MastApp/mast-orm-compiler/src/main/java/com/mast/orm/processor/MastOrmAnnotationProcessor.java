@@ -141,9 +141,9 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
                         String.format("@%s annotation must be on a method.", JsonProperty.class.getSimpleName()));
             }
 
-            VariableElement executableElement = (VariableElement) element;
-            TypeMirror typeMirror = executableElement.asType();
-            String name = executableElement.getSimpleName().toString();
+            VariableElement variableElement = (VariableElement) element;
+            TypeMirror typeMirror = variableElement.asType();
+            String name = variableElement.getSimpleName().toString();
 //            TypeElement superClassTypeElement =
 //                    (TypeElement)((DeclaredType)typeMirror).asElement();
             String typeName = Utils.toString(typeMirror, true);

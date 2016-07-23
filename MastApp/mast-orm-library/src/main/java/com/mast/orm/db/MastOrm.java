@@ -1,5 +1,6 @@
 package com.mast.orm.db;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 
@@ -85,6 +86,12 @@ public class MastOrm {
     public void executeWrite(String rawQuery, String[] selectionArgs) {
         mastDbHelper.getExecWritableDatabase().execSQL(rawQuery);
         mastDbHelper.closeDB();
+    }
+
+    public long executeWrite(ContentValues contentValues, String tableName) {
+        long rowId = mastDbHelper.getExecWritableDatabase().insert(tableName, null, contentValues);
+        mastDbHelper.closeDB();
+        return rowId;
     }
 
     public Cursor executeRead(String rawQuery, String[] selectionArgs) {

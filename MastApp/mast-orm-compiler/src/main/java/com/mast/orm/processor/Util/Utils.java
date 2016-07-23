@@ -39,10 +39,10 @@ public class Utils {
 
     public static String getClassName(String packageName) {
         int index = packageName.lastIndexOf(".");
-        System.out.println(TAG + packageName + " index  " + index);
+//        System.out.println(TAG + packageName + " index  " + index);
         if (index != -1) {
             String newPackageName = packageName.substring(index+1);
-            System.out.println(TAG + newPackageName);
+//            System.out.println(TAG + newPackageName);
             return newPackageName;
         }
 
@@ -52,10 +52,10 @@ public class Utils {
     public static String getClassName(String packageName, TypeKind typeKind) {
         if (typeKind != DECLARED && typeKind != ARRAY) {
             int index = packageName.lastIndexOf(".");
-            System.out.println(TAG + packageName + " index  " + index);
+//            System.out.println(TAG + packageName + " index  " + index);
             if (index != -1) {
                 String newPackageName = packageName.substring(index+1);
-                System.out.println(TAG + newPackageName);
+//                System.out.println(TAG + newPackageName);
                 return newPackageName;
             }
         }
