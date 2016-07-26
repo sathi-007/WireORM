@@ -41,24 +41,11 @@ public class BindingClass {
     }
 
     public JavaFile brewJava() {
-//        MethodSpec hexDigit = MethodSpec.methodBuilder("addActivityFilter")
-//                .returns(void.class)
-//                .addStatement("return (char) (i < 10 ? i + '0' : i - 10 + 'a')")
-//                .build();
-
-
-//        String packageName = Utils.getPackageName(generatedClassName.packageName());
 
         String packageName = generatedClassName.packageName();
         ClassName classFqcn = ClassName.get(packageName,
                 generatedClassName.simpleName());
 
-
-//        FieldSpec activityFilter = FieldSpec.builder(listOfHoverboards, "activityFilter")
-//                .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
-//                .initializer("new $T<>()", arrayList)
-//                .build();
-//
         FieldSpec baseColumnName = FieldSpec.builder(string, "_id")
                 .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
                 .initializer("$S", "_id")
@@ -69,60 +56,15 @@ public class BindingClass {
                 .initializer("$S", tableName)
                 .build();
 
-
         FieldSpec clazz = FieldSpec.builder(classFqcn, "instance")
                 .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
                 .build();
-//
-//        MethodSpec.Builder beyondBuilder = MethodSpec.methodBuilder("addMethodList")
-//                .returns(void.class);
-//
-//        for (String methodName : methodNames) {
-//            beyondBuilder.addStatement("$N.add($S)", methodFilter, methodName);
-//        }
-
-//        MethodSpec beyondMethod = beyondBuilder.build();
-
-//        MethodSpec.Builder addActivityFilterBuilder = MethodSpec.methodBuilder("addActivityFilter")
-//                .returns(void.class);
-//
-////        for (String methodName : trackerList) {
-////            addActivityFilterBuilder.addStatement("$N.add($S)", activityFilter, methodName);
-////        }
-//
-//        MethodSpec activityFilterMethod = addActivityFilterBuilder.build();
-//
-//        MethodSpec getScreenName = MethodSpec.methodBuilder("getScreenName")
-//                .addModifiers(Modifier.PUBLIC)
-//                .returns(String.class)
-//                .addStatement("return $N", android)
-//                .build();
 
         MethodSpec checkSchemaFuncSpec = MethodSpec.methodBuilder("checkSchemaChange")
                 .addModifiers(Modifier.PUBLIC)
                 .returns(void.class)
                 .addStatement("$N.checkSchemaChange($N,$N)", mastOrmField, android, columnTypeMap)
                 .build();
-
-//        MethodSpec isMethodExists = MethodSpec.methodBuilder("isMethodExists")
-//                .addModifiers(Modifier.PUBLIC)
-//                .returns(TypeName.BOOLEAN)
-//                .addParameter(String.class, "methodName")
-//                .addStatement("boolean flag = false")
-//                .beginControlFlow("for (int i = $L; i < $N.size(); i++)", 0, methodFilter)
-//                .addStatement("flag = $N.get(i).toLowerCase().contentEquals($N.toLowerCase())", methodFilter, "methodName")
-//                .beginControlFlow("if(flag)")
-//                .addStatement("return true")
-//                .endControlFlow()
-//                .endControlFlow()
-//                .addStatement("return flag")
-//                .build();
-
-//        MethodSpec flux = MethodSpec.constructorBuilder()
-//                .addModifiers(Modifier.PUBLIC)
-//                .addStatement("addActivityFilter()")
-////                .addStatement("addMethodList()")
-//                .build();
 
         MethodSpec loadFunc = MethodSpec.methodBuilder("load")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
@@ -134,8 +76,9 @@ public class BindingClass {
                 .addStatement("$N.addValueTypes()", clazz)
                 .addStatement("$N.addSqlDataTypes()", clazz)
                 .addStatement("$N.addPojoFunctionName()", clazz)
-//                .addStatement("$N.checkSchemaChange()", clazz)
                 .addStatement("$N.createTable()", clazz)
+                .addStatement("$N.getTableInfo()", clazz)
+                .addStatement("$N.checkSchemaChange()", clazz)
                 .endControlFlow()
                 .addStatement("return $N", clazz)
                 .build();
@@ -166,8 +109,6 @@ public class BindingClass {
 
         TypeSpec.Builder result = TypeSpec.classBuilder(generatedClassName)
                 .addModifiers(Modifier.PUBLIC)
-//                .addField(activityFilter)
-//                .addField(methodFilter)
                 .addField(android)
                 .addField(columnValueMap)
                 .addField(columnTypeMap)
@@ -183,12 +124,6 @@ public class BindingClass {
                 .addMethod(createTabbleFunc)
                 .addMethod(checkSchemaFuncSpec)
                 .addMethod(pojo2Func);
-//                .addMethod( beyondMethod)
-//                .addMethod(getFilterList)
-//                .addMethod(activityFilterMethod)
-//                .addMethod(isMethodExists)
-//                .addMethod(getScreenName)
-//                .addMethod(flux);
 
         writeColumnIndividualSetters(result);
 
@@ -197,10 +132,10 @@ public class BindingClass {
         MethodSpec updateMethodSpec = updateMethodSpec();
         MethodSpec findMethodSpec = findMethodSpec();
         MethodSpec deleteMethodSpec = deleteMethodSpec();
-        ;
-        TypeSpec enumSpec = generateEnum();
+        MethodSpec getTableInfoMethodSpec = getTableInfoMethodSpec();
+        MethodSpec newSaveMethodSpec = saveMethodSpec();
 
-//        MethodSpec updateMethodSpec = updateTableFunc();
+        TypeSpec enumSpec = generateEnum();
 
         result.addType(enumSpec);
         result.addMethod(saveMethodSpec);
@@ -208,13 +143,10 @@ public class BindingClass {
         result.addMethod(updateMethodSpec);
         result.addMethod(findMethodSpec);
         result.addMethod(deleteMethodSpec);
-//        TypeName crudOperations = ParameterizedTypeName.get(CrudOperations);
-//
-//        result.addSuperinterface(crudOperations);
-
-//        return JavaFile.builder(Utils.getPackageName(generatedClassName.packageName()), result.build())
-//                .addFileComment("Generated code from Mast ORM. Do not modify!")
-//                .build();
+        result.addMethod(getTableInfoMethodSpec);
+        result.addMethod(newSaveMethodSpec);
+        ClassName superClass = ClassName.get(generatedClassName.packageName(),"BaseSchema");
+        result.superclass(superClass);
         return JavaFile.builder(generatedClassName.packageName(), result.build())
                 .addFileComment("Generated code from Mast ORM. Do not modify!")
                 .build();
@@ -227,12 +159,10 @@ public class BindingClass {
                 Map.Entry pair = (Map.Entry) it.next();
                 TypeMirror typeMirror = (TypeMirror) pair.getValue();
                 String className = Utils.toString(typeMirror, false);
-                String decalredType = Utils.getSqlDataType(className);
-                if (decalredType != null)
-                    builder.addStatement("$N.put($S,$S)", columnTypeMap, pair.getKey(), className);
+//                String decalredType = Utils.getSqlDataType(className);
+//                if (decalredType != null)
+                builder.addStatement("$N.put($S,$S)", columnTypeMap, pair.getKey(), className);
             }
-
-//            builder.addStatement("$N.put($S,$S)", columnTypeMap, "_id", "Integer");
         }
     }
 
@@ -354,17 +284,26 @@ public class BindingClass {
                 if (decalredType != null) {
                     String varName = (String) pair.getKey();
                     if (className.contentEquals("String")) {
-                        createFieldAndMethod(String.class, result, varName);
-
+                        createFieldAndMethod(string, result, varName);
                     } else if (className.contentEquals("Integer")) {
-                        createFieldAndMethod(Integer.class, result, varName);
-
+                        createFieldAndMethod(integer, result, varName);
                     } else if (className.contentEquals("Boolean")) {
-                        createFieldAndMethod(Boolean.class, result, varName);
+                        createFieldAndMethod(bool, result, varName);
                     }
 
                 } else {
-
+//                    TypeMirror mirror = (TypeMirror) pair.getValue();
+//                    Name paramType = ((TypeElement) ((DeclaredType) mirror).asElement()).getQualifiedName();
+//
+//                    List<? extends TypeMirror> typeArguments = ((DeclaredType) mirror).getTypeArguments();
+//                    System.out.println("BindingClass TypeMirror");
+//                    TypeName elementTypeName= TypeName.get(typeMirror);
+//                    ClassName mastOrm = ClassName.get(((TypeElement) ((DeclaredType) mirror).asElement()).getQualifiedName().toString(), "MastOrm");
+//                    if (typeArguments.size() == 0){ //single object
+//
+//                    }else { //list of objects
+//
+//                    }
                 }
             }
         }
@@ -555,17 +494,6 @@ public class BindingClass {
                 .addStatement("return pojoList");
     }
 
-    //    if (c.moveToFirst()) {
-//        do {
-//            Todo td = new Todo();
-//            td.setId(c.getInt((c.getColumnIndex(KEY_ID))));
-//            td.setNote((c.getString(c.getColumnIndex(KEY_TODO))));
-//            td.setCreatedAt(c.getString(c.getColumnIndex(KEY_CREATED_AT)));
-//
-//            // adding to todo list
-//            todos.add(td);
-//        } while (c.moveToNext());
-//    }
     private void iteratePojoFunnctionMap(MethodSpec.Builder builder) {
         if (builder != null && columnsWithFunctionNames != null) {
             Iterator it = columnsWithFunctionNames.entrySet().iterator();
@@ -599,7 +527,7 @@ public class BindingClass {
         }
     }
 
-    private <T> void createFieldAndMethod(Class<T> type, TypeSpec.Builder result, String varName) {
+    private <T> void createFieldAndMethod(TypeName type, TypeSpec.Builder result, String varName) {
 //        String packageName = Utils.getPackageName(generatedClassName.packageName());
         String packageName = generatedClassName.packageName();
 
@@ -626,6 +554,80 @@ public class BindingClass {
         if (loadFunc != null) {
             result.addMethod(loadFunc);
         }
+    }
+
+    //    SELECT sql FROM sqlite_master
+//    WHERE tbl_name = 'table_name' AND type = 'table'
+    private MethodSpec getTableInfoMethodSpec() {
+        String updateString = "PRAGMA table_info(" + tableName + ")";
+        MethodSpec.Builder findFuncBuilder = MethodSpec.methodBuilder("getTableInfo")
+                .addModifiers(Modifier.PUBLIC)
+                .addStatement("$T tableInfoQueryBuilder = new $T()", stringBuilder, stringBuilder)
+                .addStatement("tableInfoQueryBuilder.append($S)", updateString);
+
+        ClassName cursor = ClassName.get("android.database", "Cursor");
+        findFuncBuilder
+                .addStatement("$T cursor = $N.executeRead(tableInfoQueryBuilder.toString(),null)", cursor, mastOrmField)
+                .addStatement("$T pojoList = new $T()", listOfHoverboards, arrayList)
+                .beginControlFlow("if (cursor.moveToFirst())")
+                .beginControlFlow("do")
+                .addStatement("String value = cursor.getString(1)")
+                .addStatement("pojoList.add(value)")
+                .endControlFlow("while(cursor.moveToNext())")
+                .endControlFlow()
+                .addStatement("return pojoList")
+                .returns(listOfHoverboards);
+        return findFuncBuilder.build();
+    }
+
+    //    Class  aClass = MyObject.class
+//    Field field = aClass.getField("someField");
+//    Object fieldType = field.getType();
+//    ParameterizedType stringListType = (ParameterizedType) stringListField.getGenericType();
+//    Class<?> stringListClass = (Class<?>) stringListType.getActualTypeArguments()[0];
+    private MethodSpec saveMethodSpec() {
+        ClassName aClass = ClassName.get("java.lang", "Class");
+        ClassName utils = ClassName.get("com.mast.orm.db", "Utils");
+        ClassName field = ClassName.get("java.lang.reflect", "Field");
+        ClassName parameterizedType = ClassName.get("java.lang.reflect", "ParameterizedType");
+        ClassName log = ClassName.get("android.util", "Log");
+        MethodSpec.Builder saveMethodSpec = MethodSpec.methodBuilder("insert")
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(pojoClassName, "objValue")
+                .beginControlFlow("try")
+                .addStatement("$T classObj = objValue.getClass()", aClass)
+                .addStatement("int size = $N.size()", columnTypeMap)
+                .addStatement("int index=0")
+                .addStatement("$T it = $N.entrySet().iterator()", iteratorType, columnTypeMap)
+                .beginControlFlow(" while (it.hasNext())")
+                .addStatement("$T.Entry pair = ($T.Entry) it.next()", mapType, mapType)
+                .addStatement("$T field = classObj.getDeclaredField((String)pair.getKey())", field)
+                .addStatement("$T fieldType = field.getType()", aClass)
+                .addStatement("field.setAccessible(true)")
+                .beginControlFlow("if($T.isWrapperType(fieldType))", utils)
+                .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is primitive ")
+                .addStatement("$N.put(field.getName(),field.get(objValue))", columnValueMap)
+                .endControlFlow()
+                .beginControlFlow("else if(fieldType.equals(List.class))")
+                .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is List Type ")
+                .addStatement("$T listType = ($T) field.getGenericType()", parameterizedType, parameterizedType)
+                .addStatement("$T<?> argumentType = ($T<?>)listType.getActualTypeArguments()[0]", aClass, aClass)
+                .beginControlFlow("if($T.isWrapperType(argumentType))", utils)
+                .endControlFlow()
+                .beginControlFlow("else")
+                .endControlFlow()
+                .endControlFlow()
+                .beginControlFlow("else")
+                .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is not primitive ")
+                .endControlFlow()
+                .addStatement("it.remove()")
+                .endControlFlow()
+                .endControlFlow()
+                .beginControlFlow("catch(Exception e)")
+                .addStatement("e.printStackTrace()")
+                .endControlFlow();
+
+        return saveMethodSpec.build();
     }
 
 

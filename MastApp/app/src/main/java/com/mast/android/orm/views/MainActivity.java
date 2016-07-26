@@ -10,6 +10,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -23,6 +24,8 @@ import com.mast.android.orm.R;
 import com.mast.android.orm.adapters.ListAdapter;
 import com.mast.android.orm.js2p.Datum;
 import com.mast.android.orm.js2p.Datum_Schema;
+import com.mast.android.orm.js2p.Image;
+import com.mast.android.orm.js2p.Image_Schema;
 import com.mast.android.orm.js2p.Mast_new;
 import com.mast.android.orm.js2p.Mast_new_Schema;
 import com.mast.android.orm.subview.DividerDecoration;
@@ -42,14 +45,18 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         setupRecyclerView(recyclerView);
         initialize();
         MastOrm.initialize(getApplicationContext());
-        Mast_new_Schema.load().type("sathish").save();
-//        Datum_Schema.load().link("some val").path("some val").sectionBreak(false).save();
-        List<Mast_new> mast_news = Mast_new_Schema.load().find();
-        List<Datum> datumList = Datum_Schema.load().find();
-//        Datum_Schema.load().where(Datum_Schema.COLUMNS._ID,2).delete();
-        adapter.addItems(datumList);
-        Toast.makeText(getApplicationContext(), "Mast News Size " + datumList.size(), Toast.LENGTH_LONG).show();
-//        List<Datum> singleDatum = Datum_Schema.load().where(Datum_Schema.COLUMNS._ID, 1).find();
+        List<String> tableCoumns = Datum_Schema.load().getTableInfo();
+        for (String s : tableCoumns) {
+            Log.e("MainActivity", "Column Name " + s);
+        }
+
+        Image image = new Image();
+        Image_Schema image_schema = Image_Schema.load();
+        image_schema.insert(image);
+
+        Datum datum = new Datum();
+        Datum_Schema datum_schema = Datum_Schema.load();
+        datum_schema.insert(datum);
     }
 
     protected void setupRecyclerView(RecyclerView recyclerView) {
