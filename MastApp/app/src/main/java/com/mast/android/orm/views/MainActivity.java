@@ -1,7 +1,6 @@
 package com.mast.android.orm.views;
 
 import android.app.Dialog;
-import android.content.DialogInterface;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -10,14 +9,11 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.Toast;
 
 import com.mast.android.orm.ItemClickListener;
 import com.mast.android.orm.R;
@@ -25,12 +21,11 @@ import com.mast.android.orm.adapters.ListAdapter;
 import com.mast.android.orm.js2p.Datum;
 import com.mast.android.orm.js2p.Datum_Schema;
 import com.mast.android.orm.js2p.Image;
-import com.mast.android.orm.js2p.Image_Schema;
-import com.mast.android.orm.js2p.Mast_new;
-import com.mast.android.orm.js2p.Mast_new_Schema;
+import com.mast.android.orm.js2p.SubMenu;
 import com.mast.android.orm.subview.DividerDecoration;
 import com.mast.orm.db.MastOrm;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements ItemClickListener<Datum> {
@@ -45,16 +40,25 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         setupRecyclerView(recyclerView);
         initialize();
         MastOrm.initialize(getApplicationContext());
-        List<String> tableCoumns = Datum_Schema.load().getTableInfo();
-        for (String s : tableCoumns) {
-            Log.e("MainActivity", "Column Name " + s);
-        }
-
-        Image image = new Image();
-        Image_Schema image_schema = Image_Schema.load();
-        image_schema.insert(image);
 
         Datum datum = new Datum();
+//        datum.setPath("path1");
+        List<SubMenu> subMenuList = new ArrayList<>();
+
+        for(int i=0;i<5;i++) {
+            SubMenu subMenu = new SubMenu();
+            subMenu.setFallback(false);
+            subMenu.setLink("Link"+i);
+            subMenu.setPath("Path"+i);
+            Image image1 = new Image();
+            image1.setAlt("Alt"+i);
+            image1.setHeight(i);
+            image1.setSrc("Src"+i);
+            image1.setWidth(i);
+            subMenu.setImage(image1);
+            subMenuList.add(subMenu);
+        }
+        datum.setSubMenu(subMenuList);
         Datum_Schema datum_schema = Datum_Schema.load();
         datum_schema.insert(datum);
     }

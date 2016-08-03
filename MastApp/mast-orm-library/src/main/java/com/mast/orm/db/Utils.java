@@ -1,5 +1,7 @@
 package com.mast.orm.db;
 
+import android.database.Cursor;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -17,11 +19,6 @@ public class Utils {
         return WRAPPER_TYPES.contains(clazz);
     }
 
-    public static boolean isListType(Class<?> clazz)
-    {
-        return clazz == List.class;
-    }
-
     private static Set<Class<?>> getWrapperTypes()
     {
         Set<Class<?>> ret = new HashSet<Class<?>>();
@@ -36,5 +33,22 @@ public class Utils {
         ret.add(Void.class);
         ret.add(String.class);
         return ret;
+    }
+
+    public static <T> T getColumnValue(Class<?> clazz, Cursor cursor, int index) {
+        if(clazz.equals(String.class)){
+            return (T)cursor.getString(index);
+        }else if(clazz.equals(Boolean.class)){
+            return (T)(cursor.getInt(index)==1?new Boolean(true):new Boolean(false));
+        }else if(clazz.equals(Integer.class)){
+            return (T)new Integer(cursor.getInt(index));
+        }else if(clazz.equals(Long.class)){
+            return (T)new Long(cursor.getLong(index));
+        }else if(clazz.equals(Float.class)){
+            return (T)new Float(cursor.getFloat(index));
+        }else if(clazz.equals(Double.class)){
+            return (T)new Double(cursor.getDouble(index));
+        }
+        return (T)cursor.getString(index);
     }
 }

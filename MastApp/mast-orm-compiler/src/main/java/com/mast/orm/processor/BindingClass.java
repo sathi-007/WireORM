@@ -40,6 +40,10 @@ public class BindingClass {
         columnsWithFunctionNames.put(columnName, valueType);
     }
 
+    public void addSubClassFKMapValue(String className, String fkName) {
+        subClassFKMap.put(className, fkName);
+    }
+
     public JavaFile brewJava() {
 
         String packageName = generatedClassName.packageName();
@@ -79,6 +83,7 @@ public class BindingClass {
                 .addStatement("$N.createTable()", clazz)
                 .addStatement("$N.getTableInfo()", clazz)
                 .addStatement("$N.checkSchemaChange()", clazz)
+                .addStatement("$N.addSubClassFKValue()", clazz)
                 .endControlFlow()
                 .addStatement("return $N", clazz)
                 .build();
@@ -101,9 +106,16 @@ public class BindingClass {
         MethodSpec.Builder addPojoFunctionName = MethodSpec.methodBuilder("addPojoFunctionName")
                 .addModifiers(Modifier.PRIVATE)
                 .returns(void.class);
-        writeFunctionNameName(addPojoFunctionName, pojoFunctionNameMap);
+        writeStringMapToGenClass(addPojoFunctionName, pojoFunctionNameMap, columnsWithFunctionNames);
 
         MethodSpec pojo2Func = addPojoFunctionName.build();
+
+        MethodSpec.Builder addSubClassFKValue = MethodSpec.methodBuilder("addSubClassFKValue")
+                .addModifiers(Modifier.PRIVATE)
+                .returns(void.class);
+        writeStringMapToGenClass(addSubClassFKValue, subClassFKHashMap, subClassFKMap);
+
+        MethodSpec subClassFKMapFunc = addSubClassFKValue.build();
 
         MethodSpec createTabbleFunc = createTableFunc(columnTypeMap, columnSqlTypeMap);
 
@@ -116,6 +128,7 @@ public class BindingClass {
                 .addField(mastOrmField)
                 .addField(columnUpdateWhereValueMap)
                 .addField(pojoFunctionNameMap)
+                .addField(subClassFKHashMap)
                 .addField(baseColumnName)
                 .addField(clazz)
                 .addMethod(loadFunc)
@@ -123,6 +136,7 @@ public class BindingClass {
                 .addMethod(addSqlFunc)
                 .addMethod(createTabbleFunc)
                 .addMethod(checkSchemaFuncSpec)
+                .addMethod(subClassFKMapFunc)
                 .addMethod(pojo2Func);
 
         writeColumnIndividualSetters(result);
@@ -133,8 +147,12 @@ public class BindingClass {
         MethodSpec findMethodSpec = findMethodSpec();
         MethodSpec deleteMethodSpec = deleteMethodSpec();
         MethodSpec getTableInfoMethodSpec = getTableInfoMethodSpec();
+        MethodSpec getTableLatestRowIdMethodSpec = getTableLatestRowIdMethodSpec();
         MethodSpec newSaveMethodSpec = saveMethodSpec();
-
+        MethodSpec processSubClassTypeListMethodSpec = processSubClassTypeListMethodSpec();
+        MethodSpec subClassInsertMethodSpec = subClassInsertMethodSpec();
+        MethodSpec findDataMethodSpec = findDataMethodSpec();
+        MethodSpec subClassFindMethodSpec = subClassFindMethodSpec();
         TypeSpec enumSpec = generateEnum();
 
         result.addType(enumSpec);
@@ -144,8 +162,13 @@ public class BindingClass {
         result.addMethod(findMethodSpec);
         result.addMethod(deleteMethodSpec);
         result.addMethod(getTableInfoMethodSpec);
+        result.addMethod(getTableLatestRowIdMethodSpec);
+        result.addMethod(processSubClassTypeListMethodSpec);
+        result.addMethod(subClassInsertMethodSpec);
         result.addMethod(newSaveMethodSpec);
-        ClassName superClass = ClassName.get(generatedClassName.packageName(),"BaseSchema");
+        result.addMethod(findDataMethodSpec);
+        result.addMethod(subClassFindMethodSpec);
+        ClassName superClass = ClassName.get(generatedClassName.packageName(), "BaseSchema");
         result.superclass(superClass);
         return JavaFile.builder(generatedClassName.packageName(), result.build())
                 .addFileComment("Generated code from Mast ORM. Do not modify!")
@@ -166,7 +189,7 @@ public class BindingClass {
         }
     }
 
-    private void writeFunctionNameName(MethodSpec.Builder builder, FieldSpec columnTypeMap) {
+    private void writeStringMapToGenClass(MethodSpec.Builder builder, FieldSpec columnTypeMap, HashMap<String, String> columnsWithFunctionNames) {
         if (builder != null && columnsWithFunctionNames != null) {
             Iterator it = columnsWithFunctionNames.entrySet().iterator();
             while (it.hasNext()) {
@@ -197,13 +220,19 @@ public class BindingClass {
                 .addStatement("$T it = $N.entrySet().iterator()", iteratorType, columnTypeMap)
                 .beginControlFlow(" while (it.hasNext())")
                 .addStatement(" $T.Entry pair = ($T.Entry) it.next()", mapType, mapType)
+                .beginControlFlow("if($N.get(pair.getValue())!=null)", sqlTypeMap)
                 .addStatement("queryBuilder.append(pair.getKey()+\" \"+ $N.get(pair.getValue()))", sqlTypeMap)
+                .endControlFlow()
+                .beginControlFlow("else")
+                .addStatement("queryBuilder.append(pair.getKey()+\" \"+ \"TEXT\")")
+                .endControlFlow()
                 .beginControlFlow("if(index <size-1)")
                 .addStatement("queryBuilder.append(\",\")")
                 .endControlFlow()
                 .addStatement("index++")
                 .endControlFlow()
                 .addStatement("queryBuilder.append(\")\")")
+                .addStatement("$T.e($S, queryBuilder.toString())", log, tableName)
                 .addStatement("$N.executeWrite(queryBuilder.toString(),null)", mastOrmField)
                 .returns(void.class);
         return createTableFuncBuilder.build();
@@ -224,11 +253,18 @@ public class BindingClass {
                 .beginControlFlow(" while (it.hasNext())")
                 .addStatement(" $T.Entry pair = ($T.Entry) it.next()", mapType, mapType)
                 .addStatement("insertIntoBuilder.append(pair.getKey())")
-                .beginControlFlow("if($N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap)
+                .addStatement("$T.e($S, $S+pair.getKey())", log, tableName, "field value ")
+                .beginControlFlow("if($N.containsKey(pair.getKey())&&$N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap, columnTypeMap)
                 .addStatement("insertValueBuilder.append(\"'\"+pair.getValue()+\"'\")")
                 .endControlFlow()
-                .beginControlFlow("else if($N.get(pair.getKey()).contentEquals(\"Boolean\"))", columnTypeMap)
-                .addStatement("insertValueBuilder.append((Boolean)pair.getValue()?1:0)")
+                .beginControlFlow("else if($N.containsKey(pair.getKey())&&$N.get(pair.getKey()).contentEquals(\"Boolean\"))", columnTypeMap, columnTypeMap)
+                .addStatement("Boolean value = (Boolean)pair.getValue()")
+                .beginControlFlow("if(value!=null)")
+                .addStatement("insertValueBuilder.append(value?1:0)")
+                .endControlFlow()
+                .beginControlFlow("else")
+                .addStatement("insertValueBuilder.append(0)")
+                .endControlFlow()
                 .endControlFlow()
                 .beginControlFlow("else")
                 .addStatement("insertValueBuilder.append(pair.getValue())")
@@ -409,6 +445,18 @@ public class BindingClass {
         return updateTableFuncBuilder.build();
     }
 
+    private MethodSpec subClassFindMethodSpec() {
+        TypeName listOfPojos = ParameterizedTypeName.get(list, pojoClassName);
+        MethodSpec.Builder findFuncBuilder = MethodSpec.methodBuilder("subFindData")
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(Integer.class, "insertRowId")
+                .addParameter(String.class, "subClassFK_Key")
+                .returns(listOfPojos)
+                .addStatement("$N.put(subClassFK_Key,insertRowId)", columnUpdateWhereValueMap)
+                .addStatement("return findData()");
+        return findFuncBuilder.build();
+    }
+
     private MethodSpec findMethodSpec() {
         TypeName listOfPojos = ParameterizedTypeName.get(list, pojoClassName);
         String updateString = "SELECT * FROM " + tableName;
@@ -440,6 +488,39 @@ public class BindingClass {
         enableCursorProcessing(findFuncBuilder);
         return findFuncBuilder.build();
     }
+
+    private MethodSpec findDataMethodSpec() {
+        TypeName listOfPojos = ParameterizedTypeName.get(list, pojoClassName);
+        String updateString = "SELECT * FROM " + tableName;
+        String whereString = " WHERE ";
+        MethodSpec.Builder findFuncBuilder = MethodSpec.methodBuilder("findData")
+                .addModifiers(Modifier.PUBLIC)
+                .addStatement("$T insertValueBuilder = new $T()", stringBuilder, stringBuilder)
+                .addStatement("insertValueBuilder.append($S)", updateString)
+                .addStatement("int new_size = $N.size()", columnUpdateWhereValueMap)
+                .beginControlFlow("if(new_size>0)")
+                .addStatement("insertValueBuilder.append($S)", whereString)
+                .endControlFlow()
+                .addStatement("int new_index=0")
+                .addStatement("$T itr = $N.entrySet().iterator()", iteratorType, columnUpdateWhereValueMap)
+                .beginControlFlow(" while (itr.hasNext())")
+                .addStatement(" $T.Entry pair = ($T.Entry) itr.next()", mapType, mapType)
+                .beginControlFlow("if($N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap)
+                .addStatement("insertValueBuilder.append(pair.getKey() +\"=\"+ \"'\"+pair.getValue()+\"'\")")
+                .endControlFlow()
+                .beginControlFlow("else")
+                .addStatement("insertValueBuilder.append(pair.getKey() +\"=\"+pair.getValue())")
+                .endControlFlow()
+                .beginControlFlow("if(new_index <new_size-1)")
+                .addStatement("insertValueBuilder.append(\" AND \")")
+                .endControlFlow()
+                .addStatement("new_index++")
+                .endControlFlow()
+                .returns(listOfPojos);
+        enableCursorDataProcessing(findFuncBuilder);
+        return findFuncBuilder.build();
+    }
+
 
     private MethodSpec deleteMethodSpec() {
         TypeName listOfPojos = ParameterizedTypeName.get(list, pojoClassName);
@@ -580,21 +661,113 @@ public class BindingClass {
         return findFuncBuilder.build();
     }
 
-    //    Class  aClass = MyObject.class
-//    Field field = aClass.getField("someField");
-//    Object fieldType = field.getType();
-//    ParameterizedType stringListType = (ParameterizedType) stringListField.getGenericType();
-//    Class<?> stringListClass = (Class<?>) stringListType.getActualTypeArguments()[0];
+    private MethodSpec processSubClassTypeListMethodSpec() {
+        ClassName aClass = ClassName.get("java.lang", "Class");
+        MethodSpec.Builder processSubClassTypeListMethodSpec = MethodSpec.methodBuilder("processSubClassTypeList")
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(listOfBindClasses, "subClassValueList")
+                .addParameter(Integer.class, "lastInsertedId")
+                .beginControlFlow(" for($T bindClass : subClassValueList)", bindClass)
+                .addStatement("String classTypeStr = bindClass.getClassName()")
+                .addStatement("String fkKey = $N.get(classTypeStr)", subClassFKHashMap)
+                .addStatement("subSchemaInsert(classTypeStr,bindClass.getObjectValue(),lastInsertedId,fkKey)")
+                .endControlFlow();
+
+        return processSubClassTypeListMethodSpec.build();
+    }
+
+    private MethodSpec getTableLatestRowIdMethodSpec() {
+        String updateString = "SELECT _id from " + tableName + " order by _id DESC limit 1";
+        MethodSpec.Builder findFuncBuilder = MethodSpec.methodBuilder("getTableLatestRowId")
+                .addModifiers(Modifier.PUBLIC)
+                .addStatement("$T tableInfoQueryBuilder = new $T()", stringBuilder, stringBuilder)
+                .addStatement("tableInfoQueryBuilder.append($S)", updateString);
+
+        ClassName cursor = ClassName.get("android.database", "Cursor");
+        findFuncBuilder
+                .addStatement("$T cursor = $N.executeRead(tableInfoQueryBuilder.toString(),null)", cursor, mastOrmField)
+                .beginControlFlow("if (cursor.moveToFirst())")
+                .addStatement("Integer value = cursor.getInt(0)")
+                .addStatement("return value")
+                .endControlFlow()
+                .addStatement("return -1")
+                .returns(Integer.class);
+        return findFuncBuilder.build();
+    }
+
+    private void enableCursorDataProcessing(MethodSpec.Builder findFuncBuilder) {
+        TypeName listOfPojos = ParameterizedTypeName.get(list, pojoClassName);
+        TypeName arrayListOfPojos = ParameterizedTypeName.get(arrayList, pojoClassName);
+        ClassName cursor = ClassName.get("android.database", "Cursor");
+        ClassName aClass = ClassName.get("java.lang", "Class");
+        ClassName utils = ClassName.get("com.mast.orm.db", "Utils");
+        ClassName field = ClassName.get("java.lang.reflect", "Field");
+        ClassName method = ClassName.get("java.lang.reflect", "Method");
+        ClassName objectClass = ClassName.get("java.lang", "Object");
+        TypeName listOfObjectClass = ParameterizedTypeName.get(list, objectClass);
+        ClassName parameterizedType = ClassName.get("java.lang.reflect", "ParameterizedType");
+        ClassName log = ClassName.get("android.util", "Log");
+        findFuncBuilder
+                .addStatement("$T cursor = $N.executeRead(insertValueBuilder.toString(),null)", cursor, mastOrmField)
+                .beginControlFlow("try")
+                .addStatement("$T columnNameList = getTableInfo()", listOfHoverboards)
+                .beginControlFlow("if(columnNameList!=null&&columnNameList.size()>0)")
+                .addStatement("$T pojoList = new $T()", listOfPojos, arrayListOfPojos)
+                .beginControlFlow("if (cursor.moveToFirst())")
+                .beginControlFlow("do")
+                .addStatement("$T pojo = new $T()", pojoClassName, pojoClassName)
+                .addStatement("$T classObj = pojo.getClass()", aClass)
+                .beginControlFlow("for($T columnName:columnNameList)", string)
+                .addStatement("$T field = classObj.getDeclaredField(columnName)", field)
+                .addStatement("$T fieldType = field.getType()", aClass)
+                .beginControlFlow("if($T.isWrapperType(fieldType))", utils)
+                .addStatement("int index = cursor.getColumnIndex(columnName)")
+                .addStatement("String functionName = $N.get(columnName)", pojoFunctionNameMap)
+                .addStatement("$T method = classObj.getMethod(functionName, new $T[]{fieldType})", method, aClass)
+                .addStatement("method.invoke(pojo,$T.getColumnValue(fieldType,cursor,index))", utils)
+                .endControlFlow()
+                .beginControlFlow("else if(fieldType.equals(List.class))")
+                .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is List Type ")
+                .addStatement("$T listType = ($T) field.getGenericType()", parameterizedType, parameterizedType)
+                .addStatement("$T<?> argumentType = ($T<?>)listType.getActualTypeArguments()[0]", aClass, aClass)
+                .beginControlFlow("if($T.isWrapperType(argumentType))", utils)
+                .addStatement("$T.e($S, $S+field.getName())", log, tableName, "list fieldType is primitive ")
+                .endControlFlow()
+                .beginControlFlow("else")
+                .addStatement("$T.e($S, $S+field.getName())", log, tableName, "list fieldType is not primitive ")
+                .endControlFlow()
+                .endControlFlow()
+                .beginControlFlow("else")
+                .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is not primitive ")
+//                .addStatement("$T listOf")
+                .endControlFlow()
+                .addStatement("pojoList.add(pojo)")
+                .endControlFlow()
+                .endControlFlow("while(cursor.moveToNext())")
+                .endControlFlow()
+                .addStatement("$N.clear()", columnUpdateWhereValueMap)
+                .endControlFlow()
+                .endControlFlow()
+                .beginControlFlow("catch(Exception e)")
+                .addStatement("e.printStackTrace()")
+                .endControlFlow()
+                .addStatement("return null");
+
+    }
+
     private MethodSpec saveMethodSpec() {
         ClassName aClass = ClassName.get("java.lang", "Class");
         ClassName utils = ClassName.get("com.mast.orm.db", "Utils");
         ClassName field = ClassName.get("java.lang.reflect", "Field");
+        ClassName objectClass = ClassName.get("java.lang", "Object");
+        TypeName listOfObjectClass = ParameterizedTypeName.get(list, objectClass);
         ClassName parameterizedType = ClassName.get("java.lang.reflect", "ParameterizedType");
         ClassName log = ClassName.get("android.util", "Log");
         MethodSpec.Builder saveMethodSpec = MethodSpec.methodBuilder("insert")
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(pojoClassName, "objValue")
                 .beginControlFlow("try")
+                .addStatement("$T subClassValueList = new $T()", listOfBindClasses, arrayListOfBindClasses)
                 .addStatement("$T classObj = objValue.getClass()", aClass)
                 .addStatement("int size = $N.size()", columnTypeMap)
                 .addStatement("int index=0")
@@ -604,6 +777,7 @@ public class BindingClass {
                 .addStatement("$T field = classObj.getDeclaredField((String)pair.getKey())", field)
                 .addStatement("$T fieldType = field.getType()", aClass)
                 .addStatement("field.setAccessible(true)")
+//                .beginControlFlow("if(field.get(objValue)!=null)")
                 .beginControlFlow("if($T.isWrapperType(fieldType))", utils)
                 .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is primitive ")
                 .addStatement("$N.put(field.getName(),field.get(objValue))", columnValueMap)
@@ -613,20 +787,72 @@ public class BindingClass {
                 .addStatement("$T listType = ($T) field.getGenericType()", parameterizedType, parameterizedType)
                 .addStatement("$T<?> argumentType = ($T<?>)listType.getActualTypeArguments()[0]", aClass, aClass)
                 .beginControlFlow("if($T.isWrapperType(argumentType))", utils)
+                .addStatement("$T primitiveStringBuilder = new $T()", stringBuilder, stringBuilder)
+                .beginControlFlow("for($T object:($T)field.get(objValue))", objectClass, listOfObjectClass)
+                .addStatement("primitiveStringBuilder.append(String.valueOf(object)+\",\")")
+                .endControlFlow()
+                .addStatement("$N.put(field.getName(),primitiveStringBuilder.toString())", columnValueMap)
                 .endControlFlow()
                 .beginControlFlow("else")
+                .beginControlFlow("for($T object:($T)field.get(objValue))", objectClass, listOfObjectClass)
+                .addStatement("$T bindClass = new $T()", bindClass, bindClass)
+                .addStatement("bindClass.setClassName(argumentType.getCanonicalName())")
+                .addStatement("bindClass.setObjectValue(object)")
+                .addStatement("subClassValueList.add(bindClass)")
+                .endControlFlow()
                 .endControlFlow()
                 .endControlFlow()
                 .beginControlFlow("else")
                 .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is not primitive ")
+                .addStatement("$T bindClass = new $T()", bindClass, bindClass)
+                .addStatement("bindClass.setClassName(fieldType.getCanonicalName())")
+                .addStatement("bindClass.setObjectValue(field.get(objValue))")
+                .addStatement("subClassValueList.add(bindClass)")
                 .endControlFlow()
-                .addStatement("it.remove()")
+//                .addStatement("it.remove()")
+//                .endControlFlow()
                 .endControlFlow()
+                .addStatement("save()")
+                .addStatement("int latestRowId =getTableLatestRowId()")
+                .addStatement("processSubClassTypeList(subClassValueList,latestRowId)")
                 .endControlFlow()
+
                 .beginControlFlow("catch(Exception e)")
                 .addStatement("e.printStackTrace()")
                 .endControlFlow();
 
+        return saveMethodSpec.build();
+    }
+
+    private MethodSpec subClassInsertMethodSpec() {
+        String alterTableString = "ALTER TABLE " + tableName + " ADD COLUMN ";
+        ClassName aClass = ClassName.get("java.lang", "Class");
+        ClassName utils = ClassName.get("com.mast.orm.db", "Utils");
+        ClassName field = ClassName.get("java.lang.reflect", "Field");
+        ClassName objectClass = ClassName.get("java.lang", "Object");
+        TypeName listOfObjectClass = ParameterizedTypeName.get(list, objectClass);
+        ClassName parameterizedType = ClassName.get("java.lang.reflect", "ParameterizedType");
+        ClassName log = ClassName.get("android.util", "Log");
+        MethodSpec.Builder saveMethodSpec = MethodSpec.methodBuilder("subInsert")
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(pojoClassName, "objValue")
+                .addParameter(string, "fKey")
+                .addParameter(integer, "insertedId")
+                .addStatement("$T columnExists = false;", bool)
+                .addStatement("$T existingColumns = getTableInfo()", listOfHoverboards)
+                .beginControlFlow("for($T str :existingColumns)", string)
+                .beginControlFlow("if(str.contentEquals(fKey))")
+                .addStatement("columnExists = true")
+                .endControlFlow()
+                .endControlFlow()
+                .beginControlFlow("if(!columnExists)")
+                .addStatement("$T tableInfoQueryBuilder = new $T()", stringBuilder, stringBuilder)
+                .addStatement("tableInfoQueryBuilder.append($S)", alterTableString)
+                .addStatement("tableInfoQueryBuilder.append(fKey+\" INTEGER\")", alterTableString)
+                .addStatement("$N.executeWrite(tableInfoQueryBuilder.toString(),null)", mastOrmField)
+                .endControlFlow()
+                .addStatement("$N.put(fKey,insertedId)", columnValueMap)
+                .addStatement("insert(objValue)");
         return saveMethodSpec.build();
     }
 
@@ -669,16 +895,26 @@ public class BindingClass {
             .initializer("new $T<>()", hashSet)
             .build();
 
+    FieldSpec subClassFKHashMap = FieldSpec.builder(columnValueTypeName, "subClassFKMap")
+            .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
+            .initializer("new $T<>()", hashSet)
+            .build();
+
     FieldSpec mastOrmField = FieldSpec.builder(mastOrm, "mastOrm")
             .addModifiers(Modifier.PRIVATE)
             .build();
 
+    ClassName bindClass = ClassName.get("com.mast.orm.db", "BindClass");
+    ClassName log = ClassName.get("android.util", "Log");
     ClassName list = ClassName.get("java.util", "List");
     ClassName arrayList = ClassName.get("java.util", "ArrayList");
     TypeName listOfHoverboards = ParameterizedTypeName.get(list, string);
+    TypeName listOfBindClasses = ParameterizedTypeName.get(list, bindClass);
+    TypeName arrayListOfBindClasses = ParameterizedTypeName.get(arrayList, bindClass);
 
     private HashMap<String, TypeMirror> columnsWithDataTypes = new HashMap<>();
     private HashMap<String, String> columnsWithFunctionNames = new HashMap<>();
+    private HashMap<String, String> subClassFKMap = new HashMap<>();
     private String tableName;
     private final String TAG = BindingClass.class.getSimpleName();
 }

@@ -163,14 +163,32 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
             VariableElement variableElement = (VariableElement) element;
             TypeMirror typeMirror = variableElement.asType();
             String name = variableElement.getSimpleName().toString();
-//            TypeElement superClassTypeElement =
-//                    (TypeElement)((DeclaredType)typeMirror).asElement();
-            TypeName variableClass = getVariableClass(variableElement);
+            TypeElement classTypeElement =
+                    (TypeElement) ((DeclaredType) typeMirror).asElement();
+//            ClassName variableClass = getVariableClass(variableElement);
+            boolean isFKRequired = false;
+            String subClassName = "";
+            if (!Utils.isWrapperType(classTypeElement.getQualifiedName().toString())) {
+                subClassName = classTypeElement.getQualifiedName().toString();
+                isFKRequired = true;
+                Name paramType = classTypeElement.getQualifiedName();
+                List<? extends TypeMirror> typeArguments = ((DeclaredType) typeMirror).getTypeArguments();
+                if (paramType.toString().contentEquals("java.util.List")) {
+                    TypeMirror mirror = typeArguments.get(0);
+                    TypeElement elementNew = ((TypeElement) ((DeclaredType) mirror).asElement());
+                    subClassName = elementNew.getQualifiedName().toString();
+                    isFKRequired = true;
+                }
+            }
             String typeName = Utils.toString(typeMirror, true);
             messager.printMessage(NOTE, "Activity Variable Name " + typeName);
             BindingClass bindingClass = getOrCreateTargetClass(targetClassMap, annotationElement);
             if (bindingClass != null) {
                 bindingClass.addColumn(name, typeMirror);
+                if (isFKRequired) {
+                    String packageName = getPackageName(annotationElement);
+                    bindingClass.addSubClassFKMapValue(subClassName, "fk_" + getClassName(annotationElement, packageName));
+                }
             }
         } else if (element instanceof ExecutableElement) {
             ExecutableElement executableElement = (ExecutableElement) element;
@@ -189,12 +207,11 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
         }
     }
 
-    private TypeName getVariableClass(VariableElement variableElement) {
+    private ClassName getVariableClass(VariableElement variableElement) {
         TypeMirror typeMirror = variableElement.asType();
         TypeElement element1 = ((TypeElement) ((DeclaredType) typeMirror).asElement());
 
-        Name paramType = ((TypeElement) ((DeclaredType) typeMirror).asElement()).getQualifiedName();
-
+        Name paramType = element1.getQualifiedName();
         List<? extends TypeMirror> typeArguments = ((DeclaredType) typeMirror).getTypeArguments();
         System.out.println("BindingClass TypeMirror");
         if (typeArguments.size() == 0) { //single object
@@ -208,10 +225,10 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
                 TypeMirror mirror = typeArguments.get(0);
                 TypeElement elementNew = ((TypeElement) ((DeclaredType) mirror).asElement());
                 String packageName = getPackageName(elementNew);
-                String name = variableElement.getSimpleName().toString();
+                String name = elementNew.getSimpleName().toString();
                 ClassName className = ClassName.get(packageName, name);
                 TypeName listOfHoverboards = ParameterizedTypeName.get(list, className);
-                return listOfHoverboards;
+                return (ClassName) listOfHoverboards;
             }
         }
         return null;
@@ -291,18 +308,37 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
                 .addModifiers(Modifier.PROTECTED)
                 .addParameter(String.class, "subClassName")
                 .addParameter(Object.class, "subClassObj")
+                .addParameter(Integer.class, "insertRowId")
+                .addParameter(String.class, "subClassFK_Key")
                 .returns(void.class);
+
+        ClassName aClass = ClassName.get("java.lang", "Class");
+        ClassName type = ClassName.get("java.lang", "Object");
+        TypeName listOfHoverboards = ParameterizedTypeName.get(aClass, type);
+        MethodSpec.Builder subSchemaFindBuilder = MethodSpec.methodBuilder("subSchemaFind")
+                .addModifiers(Modifier.PROTECTED)
+                .addParameter(listOfHoverboards, "subClassName")
+                .addParameter(Integer.class, "insertRowId")
+                .addParameter(String.class, "subClassFK_Key")
+                .returns(type);
 
         for (Map.Entry<String, String> entry : classMaps.entrySet()) {
             ClassName subSchemaClassName = ClassName.get(baseSchemaClass.packageName(), entry.getValue());
             ClassName dtoClassName = ClassName.get(baseSchemaClass.packageName(), entry.getKey());
             subSchemaInsertBuilder.beginControlFlow("if(subClassName.contentEquals($S))", entry.getKey())
                     .addStatement("$T subClass = $T.load()", subSchemaClassName, subSchemaClassName)
-                    .addStatement("subClass.insert(($T)subClassObj)",dtoClassName)
+                    .addStatement("subClass.subInsert(($T)subClassObj,subClassFK_Key,insertRowId)", dtoClassName)
+                    .endControlFlow();
+
+            subSchemaFindBuilder.beginControlFlow("if(subClassName.getCanonicalName().contentEquals($S))", entry.getKey())
+                    .addStatement("$T subClass = $T.load()", subSchemaClassName, subSchemaClassName)
+                    .addStatement(" return subClass.subFindData(insertRowId,subClassFK_Key)", dtoClassName)
                     .endControlFlow();
 
         }
+        subSchemaFindBuilder.addStatement("return null");
         result.addMethod(subSchemaInsertBuilder.build());
+        result.addMethod(subSchemaFindBuilder.build());
         return JavaFile.builder(baseSchemaClass.packageName(), result.build())
                 .addFileComment("Generated code from Mast ORM. Do not modify!")
                 .build();

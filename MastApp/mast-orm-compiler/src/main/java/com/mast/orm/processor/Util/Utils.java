@@ -1,7 +1,9 @@
 package com.mast.orm.processor.Util;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
@@ -115,6 +117,31 @@ public class Utils {
         classToSqlDataTypes.put("Boolean", "NUMERIC");
 
     }
+
+    private static final Set<String> WRAPPER_TYPES = getWrapperTypes();
+
+    public static boolean isWrapperType(String clazz)
+    {
+        return WRAPPER_TYPES.contains(clazz);
+    }
+
+    private static Set<String> getWrapperTypes()
+    {
+        Set<String> ret = new HashSet<String>();
+        ret.add(Boolean.class.getCanonicalName());
+        ret.add(Character.class.getCanonicalName());
+        ret.add(Byte.class.getCanonicalName());
+        ret.add(Short.class.getCanonicalName());
+        ret.add(Integer.class.getCanonicalName());
+        ret.add(Long.class.getCanonicalName());
+        ret.add(Float.class.getCanonicalName());
+        ret.add(Double.class.getCanonicalName());
+        ret.add(Void.class.getCanonicalName());
+        ret.add(String.class.getCanonicalName());
+        return ret;
+    }
+
+
 
     private static String TAG = Utils.class.getSimpleName();
 }
