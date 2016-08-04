@@ -9,11 +9,13 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import com.mast.android.orm.ItemClickListener;
 import com.mast.android.orm.R;
@@ -22,6 +24,7 @@ import com.mast.android.orm.js2p.Datum;
 import com.mast.android.orm.js2p.Datum_Schema;
 import com.mast.android.orm.js2p.Image;
 import com.mast.android.orm.js2p.SubMenu;
+import com.mast.android.orm.js2p.SubMenu_Schema;
 import com.mast.android.orm.subview.DividerDecoration;
 import com.mast.orm.db.MastOrm;
 
@@ -41,19 +44,23 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         initialize();
         MastOrm.initialize(getApplicationContext());
 
+
+    }
+
+    protected void insertDatumValues() {
         Datum datum = new Datum();
 //        datum.setPath("path1");
         List<SubMenu> subMenuList = new ArrayList<>();
 
-        for(int i=0;i<5;i++) {
+        for (int i = 0; i < 5; i++) {
             SubMenu subMenu = new SubMenu();
             subMenu.setFallback(false);
-            subMenu.setLink("Link"+i);
-            subMenu.setPath("Path"+i);
+            subMenu.setLink("Link" + i);
+            subMenu.setPath("Path" + i);
             Image image1 = new Image();
-            image1.setAlt("Alt"+i);
+            image1.setAlt("Alt" + i);
             image1.setHeight(i);
-            image1.setSrc("Src"+i);
+            image1.setSrc("Src" + i);
             image1.setWidth(i);
             subMenu.setImage(image1);
             subMenuList.add(subMenu);
@@ -99,7 +106,10 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
 
         switch (item.getItemId()) {
             case R.id.action_calendar:
-                openDialog();
+                insertDatumValues();
+                return true;
+            case R.id.action_refresh:
+                refreshList();
                 return true;
         }
         return super.onOptionsItemSelected(item);
@@ -142,9 +152,26 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         dialog.show();
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+        refreshList();
+    }
+
     private void refreshList() {
-        List<Datum> datumList = Datum_Schema.load().find();
+        List<Datum> datumList = Datum_Schema.load().findData();
+
         adapter.addItems(datumList);
+        SubMenu_Schema subMenu_schema = SubMenu_Schema.load();
+        List<SubMenu> subMenuList = subMenu_schema.findData();
+        int subImageCount = 0;
+        for (SubMenu subMenu : subMenuList) {
+            Image image = subMenu.getImage();
+            Log.d(TAG, "image altId " + image.getAlt());
+            subImageCount++;
+        }
+
+        Toast.makeText(this, "SubMenu List Size " + subImageCount, Toast.LENGTH_LONG).show();
     }
 
     private void initialize() {
@@ -157,6 +184,7 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
 
     }
 
+    private static String TAG = MainActivity.class.getSimpleName();
     Toolbar toolbar;
     ListAdapter adapter;
     RecyclerView recyclerView;

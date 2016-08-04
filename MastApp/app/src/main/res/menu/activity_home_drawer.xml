@@ -8,5 +8,11 @@
         android:title="Add"
         app:showAsAction="collapseActionView|always" />
 
+    <item
+        android:id="@+id/action_refresh"
+        android:icon="@drawable/delete"
+        android:title="Add"
+        app:showAsAction="collapseActionView|always" />
+
 
 </menu>

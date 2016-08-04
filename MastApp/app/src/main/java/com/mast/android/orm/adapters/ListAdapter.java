@@ -14,6 +14,7 @@ import com.mast.android.orm.ItemClickListener;
 import com.mast.android.orm.R;
 import com.mast.android.orm.adapters.viewholders.ViewHolder;
 import com.mast.android.orm.js2p.Datum;
+import com.mast.android.orm.js2p.Image;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,8 +63,12 @@ public class ListAdapter extends RecyclerView.Adapter<ListAdapter.NewsItemViewHo
 
         @Override
         public void setData(Datum data, int position) {
-            dotumId.setText("  "+data.getSequence());
-            dotumText.setText(" "+data.getText());
+
+            dotumId.setText("SubMenu Size  "+data.getSubMenu().size());
+//            dotumId.setText("SubMenu Size  ");
+            Image image = data.getSubMenu().get(0).getImage();
+            dotumText.setText(" Image AltId "+image.getAlt());
+//            dotumText.setText(" Image AltId ");
         }
 
         @Override

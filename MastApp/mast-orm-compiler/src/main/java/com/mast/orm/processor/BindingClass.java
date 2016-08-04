@@ -24,8 +24,6 @@ public class BindingClass {
 
     private final ClassName generatedClassName;
     private final ClassName pojoClassName;
-    private static final ClassName CrudOperations = ClassName.get("com.mast.orm.db", "CrudOperations");
-
     public BindingClass(String tableName, ClassName generatedClassName, ClassName pojoClassName) {
         this.tableName = tableName.toLowerCase();
         this.generatedClassName = generatedClassName;
@@ -505,7 +503,7 @@ public class BindingClass {
                 .addStatement("$T itr = $N.entrySet().iterator()", iteratorType, columnUpdateWhereValueMap)
                 .beginControlFlow(" while (itr.hasNext())")
                 .addStatement(" $T.Entry pair = ($T.Entry) itr.next()", mapType, mapType)
-                .beginControlFlow("if($N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap)
+                .beginControlFlow("if($N.get(pair.getKey())!=null&&$N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap,columnTypeMap)
                 .addStatement("insertValueBuilder.append(pair.getKey() +\"=\"+ \"'\"+pair.getValue()+\"'\")")
                 .endControlFlow()
                 .beginControlFlow("else")
@@ -709,40 +707,51 @@ public class BindingClass {
         ClassName log = ClassName.get("android.util", "Log");
         findFuncBuilder
                 .addStatement("$T cursor = $N.executeRead(insertValueBuilder.toString(),null)", cursor, mastOrmField)
+                .addStatement("$T pojoList = new $T()", listOfPojos, arrayListOfPojos)
                 .beginControlFlow("try")
                 .addStatement("$T columnNameList = getTableInfo()", listOfHoverboards)
                 .beginControlFlow("if(columnNameList!=null&&columnNameList.size()>0)")
-                .addStatement("$T pojoList = new $T()", listOfPojos, arrayListOfPojos)
                 .beginControlFlow("if (cursor.moveToFirst())")
                 .beginControlFlow("do")
                 .addStatement("$T pojo = new $T()", pojoClassName, pojoClassName)
+                .addStatement("int _id = cursor.getInt(cursor.getColumnIndex(\"_id\"))")
                 .addStatement("$T classObj = pojo.getClass()", aClass)
                 .beginControlFlow("for($T columnName:columnNameList)", string)
+                .beginControlFlow("if($N.get(columnName)!=null)",columnTypeMap)
                 .addStatement("$T field = classObj.getDeclaredField(columnName)", field)
                 .addStatement("$T fieldType = field.getType()", aClass)
-                .beginControlFlow("if($T.isWrapperType(fieldType))", utils)
-                .addStatement("int index = cursor.getColumnIndex(columnName)")
                 .addStatement("String functionName = $N.get(columnName)", pojoFunctionNameMap)
                 .addStatement("$T method = classObj.getMethod(functionName, new $T[]{fieldType})", method, aClass)
+                .addStatement("int index = cursor.getColumnIndex(columnName)")
+                .beginControlFlow("if($T.isWrapperType(fieldType))", utils)
                 .addStatement("method.invoke(pojo,$T.getColumnValue(fieldType,cursor,index))", utils)
                 .endControlFlow()
                 .beginControlFlow("else if(fieldType.equals(List.class))")
                 .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is List Type ")
                 .addStatement("$T listType = ($T) field.getGenericType()", parameterizedType, parameterizedType)
-                .addStatement("$T<?> argumentType = ($T<?>)listType.getActualTypeArguments()[0]", aClass, aClass)
+                .addStatement("$T<$T> argumentType = ($T<$T>)listType.getActualTypeArguments()[0]", aClass, objectClass,aClass,objectClass)
                 .beginControlFlow("if($T.isWrapperType(argumentType))", utils)
                 .addStatement("$T.e($S, $S+field.getName())", log, tableName, "list fieldType is primitive ")
+                .addStatement("method.invoke(pojo,$T.getColumnListValue(argumentType,cursor,index))", utils)
                 .endControlFlow()
                 .beginControlFlow("else")
                 .addStatement("$T.e($S, $S+field.getName())", log, tableName, "list fieldType is not primitive ")
+                .addStatement("String fkKey = $N.get(argumentType.getCanonicalName())", subClassFKHashMap)
+                .addStatement("$T listOfSubPojos = ($T)subSchemaFind(argumentType,_id,fkKey)",list,list)
+                .addStatement("method.invoke(pojo,listOfSubPojos)")
                 .endControlFlow()
                 .endControlFlow()
                 .beginControlFlow("else")
                 .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is not primitive ")
-//                .addStatement("$T listOf")
+                .addStatement("String fkKey = $N.get(fieldType.getCanonicalName())", subClassFKHashMap)
+                .addStatement("$T listOfSubPojos = ($T)subSchemaFind(fieldType,_id,fkKey)",list,list)
+                .beginControlFlow("if(listOfSubPojos!=null&&listOfSubPojos.size()==1)")
+                .addStatement("method.invoke(pojo,listOfSubPojos.get(0))")
+                .endControlFlow()
+                .endControlFlow()
+                .endControlFlow()
                 .endControlFlow()
                 .addStatement("pojoList.add(pojo)")
-                .endControlFlow()
                 .endControlFlow("while(cursor.moveToNext())")
                 .endControlFlow()
                 .addStatement("$N.clear()", columnUpdateWhereValueMap)
@@ -751,7 +760,7 @@ public class BindingClass {
                 .beginControlFlow("catch(Exception e)")
                 .addStatement("e.printStackTrace()")
                 .endControlFlow()
-                .addStatement("return null");
+                .addStatement("return pojoList");
 
     }
 
@@ -789,7 +798,7 @@ public class BindingClass {
                 .beginControlFlow("if($T.isWrapperType(argumentType))", utils)
                 .addStatement("$T primitiveStringBuilder = new $T()", stringBuilder, stringBuilder)
                 .beginControlFlow("for($T object:($T)field.get(objValue))", objectClass, listOfObjectClass)
-                .addStatement("primitiveStringBuilder.append(String.valueOf(object)+\",\")")
+                .addStatement("primitiveStringBuilder.append(String.valueOf(object)+$S)","$_*_$")
                 .endControlFlow()
                 .addStatement("$N.put(field.getName(),primitiveStringBuilder.toString())", columnValueMap)
                 .endControlFlow()
