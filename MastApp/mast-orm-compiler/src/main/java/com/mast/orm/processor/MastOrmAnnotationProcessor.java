@@ -93,7 +93,8 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
         Map<TypeElement, BindingClass> targetBindClassMap = new HashMap<>();
 //
         for (Element element : roundEnv.getElementsAnnotatedWith(JsonProperty.class)) {
-            messager.printMessage(NOTE, "JsonPropertyOrder annotation is being processed");
+            TypeElement annotationElement = (TypeElement) element.getEnclosingElement();
+            messager.printMessage(NOTE, "JsonProperty annotation is being processed of " + annotationElement.getQualifiedName().toString());
             if (!SuperficialValidation.validateElement(element)) continue;
             try {
                 parseTrackEvent(element, targetBindClassMap);
@@ -103,7 +104,8 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
         }
 
         for (Element element : roundEnv.getElementsAnnotatedWith(JsonPropertyOrder.class)) {
-            messager.printMessage(NOTE, "JsonProperty annotation is being processed");
+            TypeElement annotationElement = (TypeElement) element;
+            messager.printMessage(NOTE, "JsonPropertyOrder annotation is being processed "+ annotationElement.getQualifiedName().toString());
             if (!SuperficialValidation.validateElement(element)) continue;
             try {
                 parseReactalytics(element, targetBindClassMap);
@@ -113,19 +115,28 @@ public class MastOrmAnnotationProcessor extends AbstractProcessor {
         }
 
 
+        int index = 0, hashSize = targetBindClassMap.size();
         for (Map.Entry<TypeElement, BindingClass> entry : targetBindClassMap.entrySet()) {
             TypeElement typeElement = entry.getKey();
             BindingClass bindingClass = entry.getValue();
 
             try {
-                if (oneTimeFlag) {
+
+                if (bindingClass.getColumnCount() > 0) {
+                    bindingClass.brewJava().writeTo(filer);
+                } else {
+                    if (classMaps.containsKey(typeElement.getQualifiedName().toString())) {
+                        classMaps.remove(typeElement.getQualifiedName().toString());
+                    }
+                }
+
+                if (index == hashSize - 1) {
                     String pacakageName = getPackageName(typeElement);
                     ClassName baseSchemaClass = ClassName.get(pacakageName, "BaseSchema");
                     brewBaseSchema(baseSchemaClass).writeTo(filer);
-                    oneTimeFlag = false;
                 }
 
-                bindingClass.brewJava().writeTo(filer);
+                index++;
             } catch (IOException e) {
                 error(typeElement, "Unable to write view binder for type %s: %s", typeElement,
                         e.getMessage());

@@ -24,6 +24,7 @@ public class BindingClass {
 
     private final ClassName generatedClassName;
     private final ClassName pojoClassName;
+
     public BindingClass(String tableName, ClassName generatedClassName, ClassName pojoClassName) {
         this.tableName = tableName.toLowerCase();
         this.generatedClassName = generatedClassName;
@@ -40,6 +41,10 @@ public class BindingClass {
 
     public void addSubClassFKMapValue(String className, String fkName) {
         subClassFKMap.put(className, fkName);
+    }
+
+    public int getColumnCount() {
+        return columnsWithDataTypes.size();
     }
 
     public JavaFile brewJava() {
@@ -140,7 +145,7 @@ public class BindingClass {
         writeColumnIndividualSetters(result);
 
         MethodSpec saveMethodSpec = saveTableFunc();
-        MethodSpec whereMethodSpec = whereMethodSpec();
+
         MethodSpec updateMethodSpec = updateMethodSpec();
         MethodSpec findMethodSpec = findMethodSpec();
         MethodSpec deleteMethodSpec = deleteMethodSpec();
@@ -151,11 +156,7 @@ public class BindingClass {
         MethodSpec subClassInsertMethodSpec = subClassInsertMethodSpec();
         MethodSpec findDataMethodSpec = findDataMethodSpec();
         MethodSpec subClassFindMethodSpec = subClassFindMethodSpec();
-        TypeSpec enumSpec = generateEnum();
-
-        result.addType(enumSpec);
         result.addMethod(saveMethodSpec);
-        result.addMethod(whereMethodSpec);
         result.addMethod(updateMethodSpec);
         result.addMethod(findMethodSpec);
         result.addMethod(deleteMethodSpec);
@@ -166,6 +167,14 @@ public class BindingClass {
         result.addMethod(newSaveMethodSpec);
         result.addMethod(findDataMethodSpec);
         result.addMethod(subClassFindMethodSpec);
+
+        if (isPrimitiveTypesExist()) {
+            TypeSpec enumSpec = generateEnum();
+            MethodSpec whereMethodSpec = whereMethodSpec();
+            result.addType(enumSpec);
+            result.addMethod(whereMethodSpec);
+        }
+
         ClassName superClass = ClassName.get(generatedClassName.packageName(), "BaseSchema");
         result.superclass(superClass);
         return JavaFile.builder(generatedClassName.packageName(), result.build())
@@ -185,6 +194,22 @@ public class BindingClass {
                 builder.addStatement("$N.put($S,$S)", columnTypeMap, pair.getKey(), className);
             }
         }
+    }
+
+    private boolean isPrimitiveTypesExist() {
+        if (columnsWithDataTypes != null) {
+            Iterator it = columnsWithDataTypes.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry pair = (Map.Entry) it.next();
+                TypeMirror typeMirror = (TypeMirror) pair.getValue();
+                String className = Utils.toString(typeMirror, false);
+                String decalredType = Utils.getSqlDataType(className);
+                if (decalredType != null) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void writeStringMapToGenClass(MethodSpec.Builder builder, FieldSpec columnTypeMap, HashMap<String, String> columnsWithFunctionNames) {
@@ -503,7 +528,7 @@ public class BindingClass {
                 .addStatement("$T itr = $N.entrySet().iterator()", iteratorType, columnUpdateWhereValueMap)
                 .beginControlFlow(" while (itr.hasNext())")
                 .addStatement(" $T.Entry pair = ($T.Entry) itr.next()", mapType, mapType)
-                .beginControlFlow("if($N.get(pair.getKey())!=null&&$N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap,columnTypeMap)
+                .beginControlFlow("if($N.get(pair.getKey())!=null&&$N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap, columnTypeMap)
                 .addStatement("insertValueBuilder.append(pair.getKey() +\"=\"+ \"'\"+pair.getValue()+\"'\")")
                 .endControlFlow()
                 .beginControlFlow("else")
@@ -591,7 +616,12 @@ public class BindingClass {
                         builder.addStatement("String value = cursor.getString(index)");
                     } else if (className.contentEquals("Integer")) {
                         builder.addStatement("Integer value = cursor.getInt(index)");
-                    } else if (className.contentEquals("Boolean")) {
+                    }else if (className.contentEquals("Double")) {
+                        builder.addStatement("Double value = cursor.getDouble(index)");
+                    }else if (className.contentEquals("Float")) {
+                        builder.addStatement("Float value = cursor.getFloat(index)");
+                    }
+                    else if (className.contentEquals("Boolean")) {
                         builder.addStatement("Integer intVal = cursor.getInt(index)");
                         builder.addStatement("Boolean value = false");
                         builder.beginControlFlow("if(intVal>0)");
@@ -717,7 +747,7 @@ public class BindingClass {
                 .addStatement("int _id = cursor.getInt(cursor.getColumnIndex(\"_id\"))")
                 .addStatement("$T classObj = pojo.getClass()", aClass)
                 .beginControlFlow("for($T columnName:columnNameList)", string)
-                .beginControlFlow("if($N.get(columnName)!=null)",columnTypeMap)
+                .beginControlFlow("if($N.get(columnName)!=null)", columnTypeMap)
                 .addStatement("$T field = classObj.getDeclaredField(columnName)", field)
                 .addStatement("$T fieldType = field.getType()", aClass)
                 .addStatement("String functionName = $N.get(columnName)", pojoFunctionNameMap)
@@ -729,7 +759,7 @@ public class BindingClass {
                 .beginControlFlow("else if(fieldType.equals(List.class))")
                 .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is List Type ")
                 .addStatement("$T listType = ($T) field.getGenericType()", parameterizedType, parameterizedType)
-                .addStatement("$T<$T> argumentType = ($T<$T>)listType.getActualTypeArguments()[0]", aClass, objectClass,aClass,objectClass)
+                .addStatement("$T<$T> argumentType = ($T<$T>)listType.getActualTypeArguments()[0]", aClass, objectClass, aClass, objectClass)
                 .beginControlFlow("if($T.isWrapperType(argumentType))", utils)
                 .addStatement("$T.e($S, $S+field.getName())", log, tableName, "list fieldType is primitive ")
                 .addStatement("method.invoke(pojo,$T.getColumnListValue(argumentType,cursor,index))", utils)
@@ -737,14 +767,14 @@ public class BindingClass {
                 .beginControlFlow("else")
                 .addStatement("$T.e($S, $S+field.getName())", log, tableName, "list fieldType is not primitive ")
                 .addStatement("String fkKey = $N.get(argumentType.getCanonicalName())", subClassFKHashMap)
-                .addStatement("$T listOfSubPojos = ($T)subSchemaFind(argumentType,_id,fkKey)",list,list)
+                .addStatement("$T listOfSubPojos = ($T)subSchemaFind(argumentType,_id,fkKey)", list, list)
                 .addStatement("method.invoke(pojo,listOfSubPojos)")
                 .endControlFlow()
                 .endControlFlow()
                 .beginControlFlow("else")
                 .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is not primitive ")
                 .addStatement("String fkKey = $N.get(fieldType.getCanonicalName())", subClassFKHashMap)
-                .addStatement("$T listOfSubPojos = ($T)subSchemaFind(fieldType,_id,fkKey)",list,list)
+                .addStatement("$T listOfSubPojos = ($T)subSchemaFind(fieldType,_id,fkKey)", list, list)
                 .beginControlFlow("if(listOfSubPojos!=null&&listOfSubPojos.size()==1)")
                 .addStatement("method.invoke(pojo,listOfSubPojos.get(0))")
                 .endControlFlow()
@@ -798,7 +828,7 @@ public class BindingClass {
                 .beginControlFlow("if($T.isWrapperType(argumentType))", utils)
                 .addStatement("$T primitiveStringBuilder = new $T()", stringBuilder, stringBuilder)
                 .beginControlFlow("for($T object:($T)field.get(objValue))", objectClass, listOfObjectClass)
-                .addStatement("primitiveStringBuilder.append(String.valueOf(object)+$S)","$_*_$")
+                .addStatement("primitiveStringBuilder.append(String.valueOf(object)+$S)", "$_*_$")
                 .endControlFlow()
                 .addStatement("$N.put(field.getName(),primitiveStringBuilder.toString())", columnValueMap)
                 .endControlFlow()

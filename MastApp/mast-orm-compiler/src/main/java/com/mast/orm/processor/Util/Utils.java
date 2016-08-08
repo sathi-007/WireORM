@@ -114,7 +114,10 @@ public class Utils {
     static {
         classToSqlDataTypes.put("Integer", "INT");
         classToSqlDataTypes.put("String", "TEXT");
+        classToSqlDataTypes.put("Character", "TEXT");
         classToSqlDataTypes.put("Boolean", "NUMERIC");
+        classToSqlDataTypes.put("Double", "REAL");
+        classToSqlDataTypes.put("Float", "REAL");
 
     }
 
