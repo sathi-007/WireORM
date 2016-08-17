@@ -156,6 +156,7 @@ public class BindingClass {
         MethodSpec subClassInsertMethodSpec = subClassInsertMethodSpec();
         MethodSpec findDataMethodSpec = findDataMethodSpec();
         MethodSpec subClassFindMethodSpec = subClassFindMethodSpec();
+        MethodSpec subClassAlterTableMethodSpec = subClassAlterTable();
         result.addMethod(saveMethodSpec);
         result.addMethod(updateMethodSpec);
         result.addMethod(findMethodSpec);
@@ -167,6 +168,7 @@ public class BindingClass {
         result.addMethod(newSaveMethodSpec);
         result.addMethod(findDataMethodSpec);
         result.addMethod(subClassFindMethodSpec);
+        result.addMethod(subClassAlterTableMethodSpec);
 
         if (isPrimitiveTypesExist()) {
             TypeSpec enumSpec = generateEnum();
@@ -277,7 +279,10 @@ public class BindingClass {
                 .addStatement(" $T.Entry pair = ($T.Entry) it.next()", mapType, mapType)
                 .addStatement("insertIntoBuilder.append(pair.getKey())")
                 .addStatement("$T.e($S, $S+pair.getKey())", log, tableName, "field value ")
-                .beginControlFlow("if($N.containsKey(pair.getKey())&&$N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap, columnTypeMap)
+                .beginControlFlow("if($N.containsKey(pair.getKey())&&$N.get($N.get(pair.getKey()))==null)", columnTypeMap, columnSqlTypeMap, columnTypeMap)
+                .addStatement("insertValueBuilder.append(\"'\"+pair.getValue()+\"'\")")
+                .endControlFlow()
+                .beginControlFlow("else if($N.containsKey(pair.getKey())&&$N.get(pair.getKey()).contentEquals(\"String\"))", columnTypeMap, columnTypeMap)
                 .addStatement("insertValueBuilder.append(\"'\"+pair.getValue()+\"'\")")
                 .endControlFlow()
                 .beginControlFlow("else if($N.containsKey(pair.getKey())&&$N.get(pair.getKey()).contentEquals(\"Boolean\"))", columnTypeMap, columnTypeMap)
@@ -475,6 +480,7 @@ public class BindingClass {
                 .addParameter(Integer.class, "insertRowId")
                 .addParameter(String.class, "subClassFK_Key")
                 .returns(listOfPojos)
+                .addStatement("alterTable(subClassFK_Key)")
                 .addStatement("$N.put(subClassFK_Key,insertRowId)", columnUpdateWhereValueMap)
                 .addStatement("return findData()");
         return findFuncBuilder.build();
@@ -616,12 +622,11 @@ public class BindingClass {
                         builder.addStatement("String value = cursor.getString(index)");
                     } else if (className.contentEquals("Integer")) {
                         builder.addStatement("Integer value = cursor.getInt(index)");
-                    }else if (className.contentEquals("Double")) {
+                    } else if (className.contentEquals("Double")) {
                         builder.addStatement("Double value = cursor.getDouble(index)");
-                    }else if (className.contentEquals("Float")) {
+                    } else if (className.contentEquals("Float")) {
                         builder.addStatement("Float value = cursor.getFloat(index)");
-                    }
-                    else if (className.contentEquals("Boolean")) {
+                    } else if (className.contentEquals("Boolean")) {
                         builder.addStatement("Integer intVal = cursor.getInt(index)");
                         builder.addStatement("Boolean value = false");
                         builder.beginControlFlow("if(intVal>0)");
@@ -684,6 +689,7 @@ public class BindingClass {
                 .addStatement("pojoList.add(value)")
                 .endControlFlow("while(cursor.moveToNext())")
                 .endControlFlow()
+                .addStatement("cursor.close()")
                 .addStatement("return pojoList")
                 .returns(listOfHoverboards);
         return findFuncBuilder.build();
@@ -718,6 +724,7 @@ public class BindingClass {
                 .addStatement("Integer value = cursor.getInt(0)")
                 .addStatement("return value")
                 .endControlFlow()
+                .addStatement("cursor.close()")
                 .addStatement("return -1")
                 .returns(Integer.class);
         return findFuncBuilder.build();
@@ -790,6 +797,11 @@ public class BindingClass {
                 .beginControlFlow("catch(Exception e)")
                 .addStatement("e.printStackTrace()")
                 .endControlFlow()
+                .beginControlFlow("finally")
+                .beginControlFlow("if(cursor!=null&&cursor.isClosed())")
+                .addStatement("cursor.close()")
+                .endControlFlow()
+                .endControlFlow()
                 .addStatement("return pojoList");
 
     }
@@ -816,7 +828,7 @@ public class BindingClass {
                 .addStatement("$T field = classObj.getDeclaredField((String)pair.getKey())", field)
                 .addStatement("$T fieldType = field.getType()", aClass)
                 .addStatement("field.setAccessible(true)")
-//                .beginControlFlow("if(field.get(objValue)!=null)")
+                .beginControlFlow("if(field.get(objValue)!=null)")
                 .beginControlFlow("if($T.isWrapperType(fieldType))", utils)
                 .addStatement("$T.e($S, $S+field.getName())", log, tableName, "field is primitive ")
                 .addStatement("$N.put(field.getName(),field.get(objValue))", columnValueMap)
@@ -839,6 +851,7 @@ public class BindingClass {
                 .addStatement("bindClass.setObjectValue(object)")
                 .addStatement("subClassValueList.add(bindClass)")
                 .endControlFlow()
+                .addStatement("$N.put(field.getName(),$S)", columnValueMap, "none")
                 .endControlFlow()
                 .endControlFlow()
                 .beginControlFlow("else")
@@ -847,9 +860,10 @@ public class BindingClass {
                 .addStatement("bindClass.setClassName(fieldType.getCanonicalName())")
                 .addStatement("bindClass.setObjectValue(field.get(objValue))")
                 .addStatement("subClassValueList.add(bindClass)")
+                .addStatement("$N.put(field.getName(),$S)", columnValueMap, "none")
                 .endControlFlow()
 //                .addStatement("it.remove()")
-//                .endControlFlow()
+                .endControlFlow()
                 .endControlFlow()
                 .addStatement("save()")
                 .addStatement("int latestRowId =getTableLatestRowId()")
@@ -863,20 +877,11 @@ public class BindingClass {
         return saveMethodSpec.build();
     }
 
-    private MethodSpec subClassInsertMethodSpec() {
+    private MethodSpec subClassAlterTable() {
         String alterTableString = "ALTER TABLE " + tableName + " ADD COLUMN ";
-        ClassName aClass = ClassName.get("java.lang", "Class");
-        ClassName utils = ClassName.get("com.mast.orm.db", "Utils");
-        ClassName field = ClassName.get("java.lang.reflect", "Field");
-        ClassName objectClass = ClassName.get("java.lang", "Object");
-        TypeName listOfObjectClass = ParameterizedTypeName.get(list, objectClass);
-        ClassName parameterizedType = ClassName.get("java.lang.reflect", "ParameterizedType");
-        ClassName log = ClassName.get("android.util", "Log");
-        MethodSpec.Builder saveMethodSpec = MethodSpec.methodBuilder("subInsert")
+        MethodSpec.Builder saveMethodSpec = MethodSpec.methodBuilder("alterTable")
                 .addModifiers(Modifier.PUBLIC)
-                .addParameter(pojoClassName, "objValue")
                 .addParameter(string, "fKey")
-                .addParameter(integer, "insertedId")
                 .addStatement("$T columnExists = false;", bool)
                 .addStatement("$T existingColumns = getTableInfo()", listOfHoverboards)
                 .beginControlFlow("for($T str :existingColumns)", string)
@@ -889,7 +894,19 @@ public class BindingClass {
                 .addStatement("tableInfoQueryBuilder.append($S)", alterTableString)
                 .addStatement("tableInfoQueryBuilder.append(fKey+\" INTEGER\")", alterTableString)
                 .addStatement("$N.executeWrite(tableInfoQueryBuilder.toString(),null)", mastOrmField)
-                .endControlFlow()
+                .endControlFlow();
+        return saveMethodSpec.build();
+    }
+
+    private MethodSpec subClassInsertMethodSpec() {
+        ClassName objectClass = ClassName.get("java.lang", "Object");
+        ClassName log = ClassName.get("android.util", "Log");
+        MethodSpec.Builder saveMethodSpec = MethodSpec.methodBuilder("subInsert")
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(pojoClassName, "objValue")
+                .addParameter(string, "fKey")
+                .addParameter(integer, "insertedId")
+                .addStatement("alterTable(fKey)")
                 .addStatement("$N.put(fKey,insertedId)", columnValueMap)
                 .addStatement("insert(objValue)");
         return saveMethodSpec.build();
