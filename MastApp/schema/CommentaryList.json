@@ -1,0 +1,13 @@
+{
+  "commText":"text",
+  "timestamp":23,
+  "overNumber":23.4,
+  "inningsId":2,
+  "event":"string",
+  "overSeparator":{
+    "commText":"text",
+    "timestamp":23,
+    "overNumber":23.4,
+    "inningsId":2
+  }
+}

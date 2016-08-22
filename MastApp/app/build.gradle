@@ -68,6 +68,8 @@ dependencies {
     compile 'javax.validation:validation-api:1.1.0.CR2'
     compile 'com.fasterxml.jackson.core:jackson-databind:2.1.4'
     compile 'com.android.support.constraint:constraint-layout:1.0.0-alpha4'
+    // Realm
+    compile 'io.realm:realm-android:0.82.1'
 }
 
 // Each configuration is set to the default value
